@@ -38,6 +38,13 @@ import {
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from './config/auth.js';
 import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
+import {
+  listSessions,
+  loadSession,
+  SessionData,
+} from './utils/sessionManager.js';
+import { promptSessionSelection } from './ui/SessionSelector.js';
+import { HistoryItem } from './ui/types.js';
 
 function getNodeMemoryArgs(config: Config): string[] {
   const totalMemoryMB = os.totalmem() / (1024 * 1024);
@@ -103,6 +110,14 @@ export async function main() {
   const extensions = loadExtensions(workspaceRoot);
   const config = await loadCliConfig(settings.merged, extensions, sessionId);
 
+  if (config.getListSessions()) {
+    const sessions = await listSessions(config.getProjectRoot());
+    for (const s of sessions) {
+      console.log(`${s.sessionId}  ${s.startTime}`);
+    }
+    process.exit(0);
+  }
+
   if (config.getListExtensions()) {
     console.log('Installed extensions:');
     for (const extension of extensions) {
@@ -131,6 +146,28 @@ export async function main() {
   setMaxSizedBoxDebugging(config.getDebugMode());
 
   await config.initialize();
+
+  let initialHistory: HistoryItem[] = [];
+  if (config.getResumeLatest()) {
+    const sessions = await listSessions(config.getProjectRoot());
+    if (sessions[0]) {
+      initialHistory = sessions[0].history;
+    }
+  } else if (config.getResumeSessionId()) {
+    const resumeId = config.getResumeSessionId();
+    if (typeof resumeId === 'string') {
+      const data = await loadSession(resumeId, config.getProjectRoot());
+      if (data) {
+        initialHistory = data.history;
+      }
+    } else {
+      const sessions = await listSessions(config.getProjectRoot());
+      if (sessions.length > 0) {
+        const selected = await promptSessionSelection(sessions);
+        initialHistory = selected.history;
+      }
+    }
+  }
 
   if (settings.merged.theme) {
     if (!themeManager.setActiveTheme(settings.merged.theme)) {
@@ -186,6 +223,7 @@ export async function main() {
           config={config}
           settings={settings}
           startupWarnings={startupWarnings}
+          initialHistory={initialHistory}
         />
       </React.StrictMode>,
       { exitOnCtrlC: false },

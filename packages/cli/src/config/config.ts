@@ -53,6 +53,9 @@ interface CliArgs {
   allowedMcpServerNames: string | undefined;
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
+  resume: string | boolean | undefined;
+  resumeLatest: boolean | undefined;
+  listSessions: boolean | undefined;
 }
 
 async function parseArguments(): Promise<CliArgs> {
@@ -166,6 +169,19 @@ async function parseArguments(): Promise<CliArgs> {
       alias: 'l',
       type: 'boolean',
       description: 'List all available extensions and exit.',
+    })
+    .option('resume', {
+      alias: 'r',
+      string: true,
+      description: 'Resume a previous session (optional session id).',
+    })
+    .option('resume-latest', {
+      type: 'boolean',
+      description: 'Resume the most recent saved session.',
+    })
+    .option('list-sessions', {
+      type: 'boolean',
+      description: 'List resumable sessions and exit.',
     })
     .version(await getCliVersion()) // This will enable the --version flag based on package.json
     .alias('v', 'version')
@@ -311,6 +327,9 @@ export async function loadCliConfig(
     model: argv.model!,
     extensionContextFilePaths,
     listExtensions: argv.listExtensions || false,
+    resumeSessionId: argv.resume,
+    resumeLatest: argv.resumeLatest || false,
+    listSessions: argv.listSessions || false,
     activeExtensions: activeExtensions.map((e) => ({
       name: e.config.name,
       version: e.config.version,

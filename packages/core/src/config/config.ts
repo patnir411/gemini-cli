@@ -140,6 +140,9 @@ export interface ConfigParameters {
   extensionContextFilePaths?: string[];
   listExtensions?: boolean;
   activeExtensions?: ActiveExtension[];
+  resumeSessionId?: string | boolean;
+  resumeLatest?: boolean;
+  listSessions?: boolean;
 }
 
 export class Config {
@@ -181,6 +184,9 @@ export class Config {
   private modelSwitchedDuringSession: boolean = false;
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
+  private readonly resumeSessionId?: string | boolean;
+  private readonly resumeLatest: boolean;
+  private readonly listSessions: boolean;
   flashFallbackHandler?: FlashFallbackHandler;
 
   constructor(params: ConfigParameters) {
@@ -225,6 +231,9 @@ export class Config {
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
     this.listExtensions = params.listExtensions ?? false;
     this._activeExtensions = params.activeExtensions ?? [];
+    this.resumeSessionId = params.resumeSessionId;
+    this.resumeLatest = params.resumeLatest ?? false;
+    this.listSessions = params.listSessions ?? false;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -459,6 +468,18 @@ export class Config {
 
   getListExtensions(): boolean {
     return this.listExtensions;
+  }
+
+  getResumeSessionId(): string | boolean | undefined {
+    return this.resumeSessionId;
+  }
+
+  getResumeLatest(): boolean {
+    return this.resumeLatest;
+  }
+
+  getListSessions(): boolean {
+    return this.listSessions;
   }
 
   getActiveExtensions(): ActiveExtension[] {

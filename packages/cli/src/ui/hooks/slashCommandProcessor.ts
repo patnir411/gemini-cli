@@ -29,6 +29,7 @@ import {
 } from '../types.js';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { saveSession } from '../../utils/sessionManager.js';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatDuration, formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
@@ -836,6 +837,14 @@ export const useSlashCommandProcessor = (
           const now = new Date();
           const { sessionStartTime } = session.stats;
           const wallDuration = now.getTime() - sessionStartTime.getTime();
+
+          await saveSession(
+            history,
+            config!.getSessionId(),
+            config!.getProjectRoot(),
+            sessionStartTime,
+            now,
+          );
 
           setQuittingMessages([
             {

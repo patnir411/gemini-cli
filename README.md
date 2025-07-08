@@ -151,6 +151,23 @@ Use MCP servers to integrate your local system tools with your enterprise collab
 
 Head over to the [Uninstall](docs/Uninstall.md) guide for uninstallation instructions.
 
+## Experimental Web UI
+
+This repository now includes an experimental web interface located under
+`packages/webui`. The web UI reuses the core logic from `packages/core` and
+provides a simple chat page available at `http://localhost:8080` when running
+
+```bash
+npm --workspace packages/webui run start
+```
+
+The implementation uses a small Express server with a WebSocket endpoint to
+stream Gemini responses to the browser. The frontend is a basic React app that
+opens the WebSocket connection and displays streamed text.
+
+This prototype demonstrates how Gemini CLI can power alternative user
+interfaces beyond the terminal.
+
 ## Terms of Service and Privacy Notice
 
 For details on the terms of service and privacy notice applicable to your use of Gemini CLI, see the [Terms of Service and Privacy Notice](./docs/tos-privacy.md).

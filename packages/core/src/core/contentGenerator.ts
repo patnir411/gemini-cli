@@ -22,6 +22,7 @@ import { LoggingContentGenerator } from './loggingContentGenerator.js';
 import { InstallationManager } from '../utils/installationManager.js';
 import { FakeContentGenerator } from './fakeContentGenerator.js';
 import { RecordingContentGenerator } from './recordingContentGenerator.js';
+import { OllamaContentGenerator } from './ollamaContentGenerator.js';
 
 /**
  * Interface abstracting the core functionalities for generating content and counting tokens.
@@ -49,6 +50,7 @@ export enum AuthType {
   USE_GEMINI = 'gemini-api-key',
   USE_VERTEX_AI = 'vertex-ai',
   CLOUD_SHELL = 'cloud-shell',
+  USE_OLLAMA = 'ollama',
 }
 
 export type ContentGeneratorConfig = {
@@ -56,6 +58,7 @@ export type ContentGeneratorConfig = {
   vertexai?: boolean;
   authType?: AuthType;
   proxy?: string;
+  ollamaBaseUrl?: string;
 };
 
 export async function createContentGeneratorConfig(
@@ -81,6 +84,14 @@ export async function createContentGeneratorConfig(
     authType === AuthType.LOGIN_WITH_GOOGLE ||
     authType === AuthType.CLOUD_SHELL
   ) {
+    return contentGeneratorConfig;
+  }
+
+  // If we are using Ollama, get the base URL
+  if (authType === AuthType.USE_OLLAMA) {
+    const ollamaBaseUrl =
+      process.env['OLLAMA_BASE_URL'] || 'http://localhost:11434';
+    contentGeneratorConfig.ollamaBaseUrl = ollamaBaseUrl;
     return contentGeneratorConfig;
   }
 
@@ -156,6 +167,15 @@ export async function createContentGenerator(
       });
       return new LoggingContentGenerator(googleGenAI.models, gcConfig);
     }
+
+    if (config.authType === AuthType.USE_OLLAMA) {
+      const ollamaBaseUrl = config.ollamaBaseUrl || 'http://localhost:11434';
+      return new LoggingContentGenerator(
+        new OllamaContentGenerator(ollamaBaseUrl, gcConfig),
+        gcConfig,
+      );
+    }
+
     throw new Error(
       `Error creating contentGenerator: Unsupported authType: ${config.authType}`,
     );

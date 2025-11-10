@@ -33,6 +33,7 @@ import { CodeAssistServer } from '../code_assist/server.js';
 import { toContents } from '../code_assist/converter.js';
 import { isStructuredError } from '../utils/quotaErrorDetection.js';
 import { runInDevTraceSpan, type SpanMetadata } from '../telemetry/trace.js';
+import { OllamaContentGenerator } from './ollamaContentGenerator.js';
 
 interface StructuredError {
   status: number;
@@ -79,9 +80,25 @@ export class LoggingContentGenerator implements ContentGenerator {
       return { address: url.hostname, port };
     }
 
+    // Case 2: Using local Ollama instance
+    if (this.wrapped instanceof OllamaContentGenerator) {
+      const baseUrl = this.wrapped.getBaseUrl();
+      try {
+        const url = new URL(baseUrl);
+        const port = url.port
+          ? parseInt(url.port, 10)
+          : url.protocol === 'https:'
+            ? 443
+            : 80;
+        return { address: url.hostname, port };
+      } catch {
+        return { address: 'localhost', port: 11434 };
+      }
+    }
+
     const genConfig = this.config.getContentGeneratorConfig();
 
-    // Case 2: Using an API key for Vertex AI.
+    // Case 3: Using an API key for Vertex AI.
     if (genConfig?.vertexai) {
       const location = process.env['GOOGLE_CLOUD_LOCATION'];
       if (location) {
@@ -91,7 +108,7 @@ export class LoggingContentGenerator implements ContentGenerator {
       }
     }
 
-    // Case 3: Default to the public Gemini API endpoint.
+    // Case 4: Default to the public Gemini API endpoint.
     // This is used when an API key is provided but not for Vertex AI.
     return { address: `generativelanguage.googleapis.com`, port: 443 };
   }

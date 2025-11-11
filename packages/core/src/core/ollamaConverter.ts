@@ -12,7 +12,7 @@ import type {
   FunctionDeclaration,
   GenerateContentConfig,
 } from '@google/genai';
-import { GenerateContentResponse } from '@google/genai';
+import { GenerateContentResponse, FinishReason } from '@google/genai';
 
 /**
  * Ollama API request format for chat completion
@@ -126,11 +126,14 @@ export function convertToOllamaRequest(
 
   // Convert tools if present
   let tools: OllamaTool[] | undefined;
-  if (params.tools && Array.isArray(params.tools)) {
-    tools = params.tools
-      .map((tool) => {
+  const paramsWithTools = params as GenerateContentParameters & {
+    tools?: Tool[];
+  };
+  if (paramsWithTools.tools && Array.isArray(paramsWithTools.tools)) {
+    tools = paramsWithTools.tools
+      .map((tool: Tool) => {
         if ('functionDeclarations' in tool && tool.functionDeclarations) {
-          return tool.functionDeclarations.map((fn) =>
+          return tool.functionDeclarations.map((fn: FunctionDeclaration) =>
             convertFunctionToTool(fn),
           );
         }
@@ -277,13 +280,13 @@ export function convertToGeminiResponse(
   response: OllamaResponse,
 ): GenerateContentResponse {
   // Determine finish reason
-  let finishReason: string | undefined;
+  let finishReason: FinishReason = FinishReason.STOP;
   if (response.done_reason === 'stop') {
-    finishReason = 'STOP';
+    finishReason = FinishReason.STOP;
   } else if (response.done_reason === 'length') {
-    finishReason = 'MAX_TOKENS';
+    finishReason = FinishReason.MAX_TOKENS;
   } else if (response.done) {
-    finishReason = 'STOP';
+    finishReason = FinishReason.STOP;
   }
 
   // Convert message content to parts
@@ -305,25 +308,25 @@ export function convertToGeminiResponse(
     }
   }
 
-  return new GenerateContentResponse({
-    candidates: [
-      {
-        content: {
-          role: 'model',
-          parts,
-        },
-        finishReason,
-        index: 0,
+  const out = new GenerateContentResponse();
+  out.candidates = [
+    {
+      content: {
+        role: 'model',
+        parts,
       },
-    ],
-    usageMetadata: {
-      promptTokenCount: response.prompt_eval_count || 0,
-      candidatesTokenCount: response.eval_count || 0,
-      totalTokenCount:
-        (response.prompt_eval_count || 0) + (response.eval_count || 0),
+      finishReason,
+      index: 0,
     },
-    modelVersion: response.model,
-  });
+  ];
+  out.usageMetadata = {
+    promptTokenCount: response.prompt_eval_count || 0,
+    candidatesTokenCount: response.eval_count || 0,
+    totalTokenCount:
+      (response.prompt_eval_count || 0) + (response.eval_count || 0),
+  };
+  out.modelVersion = response.model;
+  return out;
 }
 
 /**
@@ -331,7 +334,7 @@ export function convertToGeminiResponse(
  */
 export function convertStreamChunkToGeminiResponse(
   chunk: OllamaStreamChunk,
-  isFirst: boolean = false,
+  _isFirst: boolean = false,
 ): GenerateContentResponse {
   const parts: Part[] = [];
 
@@ -339,32 +342,33 @@ export function convertStreamChunkToGeminiResponse(
     parts.push({ text: chunk.message.content });
   }
 
-  let finishReason: string | undefined;
+  let finishReason: FinishReason | undefined;
   if (chunk.done) {
-    finishReason = chunk.done_reason === 'length' ? 'MAX_TOKENS' : 'STOP';
+    finishReason =
+      chunk.done_reason === 'length'
+        ? FinishReason.MAX_TOKENS
+        : FinishReason.STOP;
   }
 
-  const response = new GenerateContentResponse({
-    candidates: [
-      {
-        content: {
-          role: 'model',
-          parts,
-        },
-        finishReason,
-        index: 0,
+  const response = new GenerateContentResponse();
+  response.candidates = [
+    {
+      content: {
+        role: 'model',
+        parts,
       },
-    ],
-    modelVersion: chunk.model,
-  });
+      finishReason,
+      index: 0,
+    },
+  ];
+  response.modelVersion = chunk.model;
 
   // Add usage metadata on final chunk
   if (chunk.done) {
     response.usageMetadata = {
       promptTokenCount: chunk.prompt_eval_count || 0,
       candidatesTokenCount: chunk.eval_count || 0,
-      totalTokenCount:
-        (chunk.prompt_eval_count || 0) + (chunk.eval_count || 0),
+      totalTokenCount: (chunk.prompt_eval_count || 0) + (chunk.eval_count || 0),
     };
   }
 

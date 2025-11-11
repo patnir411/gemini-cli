@@ -8,7 +8,6 @@ import type {
   Content,
   GenerateContentParameters,
   Part,
-  Tool,
   FunctionDeclaration,
   GenerateContentConfig,
 } from '@google/genai';
@@ -103,8 +102,10 @@ export function convertToOllamaRequest(
   const messages: OllamaMessage[] = [];
 
   // Add system instruction if present
-  if (params.systemInstruction) {
-    const systemText = extractTextFromContent(params.systemInstruction);
+  if (params.config?.systemInstruction) {
+    const systemText = extractTextFromContent(
+      params.config.systemInstruction as Content,
+    );
     if (systemText) {
       messages.push({
         role: 'system',
@@ -114,8 +115,11 @@ export function convertToOllamaRequest(
   }
 
   // Convert contents to messages
-  for (const content of params.contents) {
-    const message = convertContentToMessage(content);
+  const contentsArray = Array.isArray(params.contents)
+    ? params.contents
+    : [params.contents];
+  for (const content of contentsArray) {
+    const message = convertContentToMessage(content as Content);
     if (message) {
       messages.push(message);
     }
@@ -124,16 +128,18 @@ export function convertToOllamaRequest(
   // Convert generation config to options
   const options = convertGenerationConfig(params.config);
 
-  // Convert tools if present
+  // Convert tools if present (tools are in config.tools)
   let tools: OllamaTool[] | undefined;
-  const paramsWithTools = params as GenerateContentParameters & {
-    tools?: Tool[];
-  };
-  if (paramsWithTools.tools && Array.isArray(paramsWithTools.tools)) {
-    tools = paramsWithTools.tools
-      .map((tool: Tool) => {
-        if ('functionDeclarations' in tool && tool.functionDeclarations) {
-          return tool.functionDeclarations.map((fn: FunctionDeclaration) =>
+  if (params.config?.tools && Array.isArray(params.config.tools)) {
+    tools = params.config.tools
+      .map((tool) => {
+        // ToolUnion can be Tool or CallableTool
+        const toolObj = tool;
+        if (
+          'functionDeclarations' in toolObj &&
+          toolObj.functionDeclarations
+        ) {
+          return toolObj.functionDeclarations.map((fn: FunctionDeclaration) =>
             convertFunctionToTool(fn),
           );
         }
@@ -192,18 +198,23 @@ function convertContentToMessage(content: Content): OllamaMessage | null {
       textParts.push(part.text);
     } else if ('inlineData' in part && part.inlineData) {
       // Handle inline images
-      if (part.inlineData.mimeType?.startsWith('image/')) {
+      if (
+        part.inlineData.mimeType?.startsWith('image/') &&
+        part.inlineData.data
+      ) {
         images.push(part.inlineData.data);
       }
     } else if ('functionCall' in part && part.functionCall) {
       // Handle function calls
       if (!toolCalls) toolCalls = [];
-      toolCalls.push({
-        function: {
-          name: part.functionCall.name,
-          arguments: part.functionCall.args || {},
-        },
-      });
+      if (part.functionCall.name) {
+        toolCalls.push({
+          function: {
+            name: part.functionCall.name,
+            arguments: part.functionCall.args || {},
+          },
+        });
+      }
     } else if ('functionResponse' in part && part.functionResponse) {
       // Function responses are treated as tool role messages
       role = 'tool';
@@ -266,8 +277,8 @@ function convertFunctionToTool(fn: FunctionDeclaration): OllamaTool {
   return {
     type: 'function',
     function: {
-      name: fn.name,
-      description: fn.description || '',
+      name: fn.name ?? 'unknown_function',
+      description: fn.description ?? '',
       parameters: (fn.parameters as Record<string, unknown>) || {},
     },
   };

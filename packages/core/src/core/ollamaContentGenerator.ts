@@ -50,11 +50,10 @@ interface OllamaEmbeddingResponse {
  */
 export class OllamaContentGenerator implements ContentGenerator {
   private readonly baseUrl: string;
-  private readonly config: Config;
 
-  constructor(baseUrl: string, config: Config) {
+  constructor(baseUrl: string, _config: Config) {
+    // Config reserved for future use (logging, telemetry, etc.)
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
-    this.config = config;
   }
 
   /**
@@ -62,7 +61,7 @@ export class OllamaContentGenerator implements ContentGenerator {
    */
   async generateContent(
     request: GenerateContentParameters,
-    userPromptId: string,
+    _userPromptId: string,
   ): Promise<GenerateContentResponse> {
     const ollamaRequest = convertToOllamaRequest(request, false);
 
@@ -106,7 +105,7 @@ export class OllamaContentGenerator implements ContentGenerator {
    */
   async generateContentStream(
     request: GenerateContentParameters,
-    userPromptId: string,
+    _userPromptId: string,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     const ollamaRequest = convertToOllamaRequest(request, true);
 
@@ -168,10 +167,10 @@ export class OllamaContentGenerator implements ContentGenerator {
             isFirst = false;
 
             // Only yield if there's actual content
-            if (
-              geminiResponse.candidates?.[0]?.content?.parts?.length > 0 ||
-              chunk.done
-            ) {
+            const hasParts =
+              geminiResponse.candidates?.[0]?.content?.parts &&
+              geminiResponse.candidates[0].content.parts.length > 0;
+            if (hasParts || chunk.done) {
               yield geminiResponse;
             }
           } catch (error) {
@@ -210,17 +209,27 @@ export class OllamaContentGenerator implements ContentGenerator {
     // Extract text from all contents
     let totalText = '';
 
-    if (request.systemInstruction?.parts) {
-      for (const part of request.systemInstruction.parts) {
-        if ('text' in part && part.text) {
-          totalText += part.text + ' ';
+    // Check if systemInstruction is in config
+    if (request.config?.systemInstruction) {
+      const systemContent = request.config.systemInstruction as Content;
+      if (systemContent.parts) {
+        for (const part of systemContent.parts) {
+          if ('text' in part && part.text) {
+            totalText += part.text + ' ';
+          }
         }
       }
     }
 
-    for (const content of request.contents) {
-      if (content.parts) {
-        for (const part of content.parts) {
+    // Handle ContentListUnion - could be array or single item
+    const contentsArray = Array.isArray(request.contents)
+      ? request.contents
+      : [request.contents];
+
+    for (const content of contentsArray) {
+      const contentObj = content as Content;
+      if (contentObj.parts) {
+        for (const part of contentObj.parts) {
           if ('text' in part && part.text) {
             totalText += part.text + ' ';
           }
@@ -241,12 +250,21 @@ export class OllamaContentGenerator implements ContentGenerator {
   async embedContent(
     request: EmbedContentParameters,
   ): Promise<EmbedContentResponse> {
-    // Extract text from content
+    // Extract text from contents (note: plural)
     let text = '';
-    if (request.content.parts) {
-      for (const part of request.content.parts) {
-        if ('text' in part && part.text) {
-          text += part.text + ' ';
+
+    // Handle ContentListUnion - could be array or single item
+    const contentsArray = Array.isArray(request.contents)
+      ? request.contents
+      : [request.contents];
+
+    for (const content of contentsArray) {
+      const contentObj = content as Content;
+      if (contentObj.parts) {
+        for (const part of contentObj.parts) {
+          if ('text' in part && part.text) {
+            text += part.text + ' ';
+          }
         }
       }
     }
@@ -278,10 +296,13 @@ export class OllamaContentGenerator implements ContentGenerator {
 
       const ollamaResponse: OllamaEmbeddingResponse = await response.json();
 
+      // Return embeddings (plural) with ContentEmbedding format
       return {
-        embedding: {
-          values: ollamaResponse.embedding,
-        },
+        embeddings: [
+          {
+            values: ollamaResponse.embedding,
+          },
+        ],
       };
     } catch (error) {
       if (error instanceof Error && error.message.includes('ECONNREFUSED')) {

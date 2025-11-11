@@ -11,6 +11,7 @@ import type {
   EmbedContentResponse,
   GenerateContentParameters,
   GenerateContentResponse,
+  Content,
 } from '@google/genai';
 import type { ContentGenerator } from './contentGenerator.js';
 import type { Config } from '../config/config.js';
@@ -77,9 +78,7 @@ export class OllamaContentGenerator implements ContentGenerator {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `Ollama API error (${response.status}): ${errorText}`,
-        );
+        throw new Error(`Ollama API error (${response.status}): ${errorText}`);
       }
 
       const ollamaResponse: OllamaResponse = await response.json();

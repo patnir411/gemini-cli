@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Agent Harness Deep Dive</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover { background: #357ae8; }
+
+        h1 { color: #4285f4; margin-bottom: 20px; font-size: 2.5em; }
+        h2 { color: #4285f4; margin-top: 40px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
+        h3 { color: #34a853; margin-top: 25px; margin-bottom: 15px; }
+        h4 { color: #666; margin-top: 20px; margin-bottom: 10px; }
+
+        p { margin: 15px 0; color: #333; }
+        ul, ol { margin: 15px 0 15px 40px; }
+        li { margin: 8px 0; }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d32f2f;
+        }
+
+        pre {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid #4285f4;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: #333;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #4285f4;
+        }
+
+        .flow-diagram {
+            background: #fafafa;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 25px 0;
+            border: 2px solid #e0e0e0;
+        }
+
+        .flow-step {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4285f4;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .flow-step strong {
+            color: #4285f4;
+        }
+
+        .file-ref {
+            background: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <h1>🤖 Agent Harness Deep Dive</h1>
+        <p class="subtitle" style="font-size: 1.2em; color: #666;">
+            Understanding the multi-layer agent architecture that powers Gemini CLI
+        </p>
+
+        <h2>🎯 Overview</h2>
+        <p>
+            The Gemini CLI is architected as a sophisticated <strong>agent harness</strong> - a framework
+            that orchestrates interactions between the user, the AI model (Gemini), and various tools. Unlike
+            simple API wrappers, this harness provides:
+        </p>
+        <ul>
+            <li><strong>Multi-turn conversation management</strong> with history and context preservation</li>
+            <li><strong>Tool execution framework</strong> with safety confirmations and error recovery</li>
+            <li><strong>Streaming response handling</strong> with real-time UI updates</li>
+            <li><strong>Intelligent fallback mechanisms</strong> for quota limits and errors</li>
+            <li><strong>Context window management</strong> with automatic compression</li>
+            <li><strong>Loop detection</strong> to prevent infinite tool call cycles</li>
+        </ul>
+
+        <h2>🏗️ Architecture Layers</h2>
+        <p>
+            The agent harness is implemented as a 6-layer stack, each with distinct responsibilities:
+        </p>
+
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <strong>Layer 1: UI Layer</strong> <span class="file-ref">packages/cli/src/ui/</span><br>
+                Handles user input, displays responses, manages dialogs and visual elements using React/Ink
+            </div>
+            <div style="text-align: center; margin: 10px 0; font-size: 1.5em;">⬇️</div>
+            <div class="flow-step">
+                <strong>Layer 2: Client Layer</strong> <span class="file-ref">packages/core/src/core/client.ts</span><br>
+                Orchestrates multi-turn loops, manages model routing, detects loops, triggers compression
+            </div>
+            <div style="text-align: center; margin: 10px 0; font-size: 1.5em;">⬇️</div>
+            <div class="flow-step">
+                <strong>Layer 3: Chat Layer</strong> <span class="file-ref">packages/core/src/core/geminiChat.ts</span><br>
+                Manages conversation history, validates content, handles retries, records sessions
+            </div>
+            <div style="text-align: center; margin: 10px 0; font-size: 1.5em;">⬇️</div>
+            <div class="flow-step">
+                <strong>Layer 4: Turn Layer</strong> <span class="file-ref">packages/core/src/core/turn.ts</span><br>
+                Processes streaming events, extracts tool calls, handles thoughts and citations
+            </div>
+            <div style="text-align: center; margin: 10px 0; font-size: 1.5em;">⬇️</div>
+            <div class="flow-step">
+                <strong>Layer 5: Tool Execution Layer</strong> <span class="file-ref">packages/core/src/tools/</span><br>
+                Validates tool calls, requests user confirmation, executes tools, returns results
+            </div>
+            <div style="text-align: center; margin: 10px 0; font-size: 1.5em;">⬇️</div>
+            <div class="flow-step">
+                <strong>Layer 6: External Services</strong> <span class="file-ref">@google/genai, Vertex AI, etc.</span><br>
+                Gemini API, Code Assist, web services, telemetry, IDE integration
+            </div>
+        </div>
+
+        <h2>🔄 Complete Agent Loop Flow</h2>
+
+        <h3>1. User Input → Request Formation</h3>
+        <pre><code>User types message in terminal
+    ↓
+InputPrompt component captures input
+    ↓
+Command detection (slash command or regular prompt)
+    ↓
+If regular prompt:
+    - Create user content with text + attachments
+    - Add IDE context if available
+    - Append to conversation history
+    ↓
+Pass to GeminiClient.sendMessage()</code></pre>
+
+        <h3>2. Client Orchestration</h3>
+        <p>
+            The <code>GeminiClient</code> class <span class="file-ref">core/client.ts</span> is the main orchestrator:
+        </p>
+
+        <div class="info-box">
+            <strong>Key Responsibilities:</strong>
+            <ul>
+                <li><strong>Turn Limit:</strong> Maximum 100 turns per session (configurable)</li>
+                <li><strong>Model Routing:</strong> Selects appropriate model based on routing strategy</li>
+                <li><strong>Model Stickiness:</strong> Locks to a model for conversation sequence</li>
+                <li><strong>Context Management:</strong> Monitors token usage and triggers compression</li>
+                <li><strong>Loop Detection:</strong> Identifies repetitive tool calls</li>
+                <li><strong>Next Speaker Check:</strong> Determines if model should continue or yield to user</li>
+            </ul>
+        </div>
+
+        <pre><code>async *sendMessage(prompt) {
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
+    // Select or stick to model
+    const model = this.getModel(prompt)
+
+    // Check context window usage
+    if (approaching_limit) {
+      await this.compressChat()
+    }
+
+    // Send to Gemini via GeminiChat
+    for await (const event of this.chat.sendMessageStream(model, prompt)) {
+      yield event
+
+      if (event.type === 'TOOL_CALLS') {
+        // Execute tools and continue loop
+        const toolResults = await this.executeTools(event.calls)
+        prompt = toolResults // Next turn uses tool outputs
+      } else if (event.type === 'FINISHED') {
+        // Check if model wants to continue
+        if (await this.shouldContinue()) {
+          prompt = null // Model continues
+        } else {
+          break // End conversation
+        }
+      }
+    }
+  }
+}</code></pre>
+
+        <h3>3. Chat Management</h3>
+        <p>
+            The <code>GeminiChat</code> class <span class="file-ref">core/geminiChat.ts</span> manages the conversation:
+        </p>
+
+        <table>
+            <tr>
+                <th>Feature</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><strong>Dual History</strong></td>
+                <td>
+                    <strong>Comprehensive:</strong> All turns including invalid<br>
+                    <strong>Curated:</strong> Only valid turns sent to API
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Content Validation</strong></td>
+                <td>Checks for empty parts, missing text, invalid structures</td>
+            </tr>
+            <tr>
+                <td><strong>Retry Logic</strong></td>
+                <td>Up to 2 retries with temperature=1 on invalid streams</td>
+            </tr>
+            <tr>
+                <td><strong>Tool Declarations</strong></td>
+                <td>Dynamically includes available tools in each request</td>
+            </tr>
+            <tr>
+                <td><strong>Recording</strong></td>
+                <td>Persists all messages to disk via ChatRecordingService</td>
+            </tr>
+        </table>
+
+        <div class="warning-box">
+            <strong>⚠️ InvalidStreamError Handling</strong><br><br>
+            When Gemini returns an incomplete or invalid response (no finish reason, empty content), the chat layer:
+            <ol>
+                <li>Detects the invalid stream</li>
+                <li>Emits a RETRY event to the UI</li>
+                <li>Waits 500ms × attempt number</li>
+                <li>Retries with <code>temperature: 1</code> to increase randomness</li>
+                <li>After 2 failed attempts, throws FatalError</li>
+            </ol>
+        </div>
+
+        <h3>4. Turn Processing</h3>
+        <p>
+            The <code>Turn</code> class <span class="file-ref">core/turn.ts</span> processes the streaming response:
+        </p>
+
+        <pre><code>async *run() {
+  const pendingToolCalls = []
+  const pendingCitations = new Set()
+  const modelResponseParts = []
+
+  for await (const chunk of streamResponse) {
+    // Extract content
+    if (chunk.text) {
+      yield { type: 'CHUNK', text: chunk.text }
+      modelResponseParts.push({ text: chunk.text })
+    }
+
+    // Extract thoughts (thinking mode)
+    if (chunk.thought) {
+      const thought = parseThought(chunk.thought)
+      yield { type: 'THOUGHT', subject, description }
+    }
+
+    // Extract tool calls
+    if (chunk.functionCalls) {
+      for (const call of chunk.functionCalls) {
+        pendingToolCalls.push({
+          id: call.id,
+          name: call.name,
+          args: call.args
+        })
+      }
+    }
+
+    // Extract citations
+    if (chunk.groundingChunks) {
+      for (const chunk of chunk.groundingChunks) {
+        if (chunk.web) {
+          pendingCitations.add(chunk.web.uri)
+        }
+      }
+    }
+  }
+
+  // On stream completion
+  yield {
+    type: 'FINISHED',
+    toolCalls: pendingToolCalls,
+    citations: Array.from(pendingCitations),
+    finishReason: chunk.finishReason
+  }
+}</code></pre>
+
+        <h3>5. Tool Execution</h3>
+        <p>
+            The <code>CoreToolScheduler</code> <span class="file-ref">core/coreToolScheduler.ts</span> handles tool execution:
+        </p>
+
+        <div class="flow-diagram">
+            <div class="flow-step">
+                <strong>Step 1: Validation</strong><br>
+                Check if tool exists in registry, validate parameters against schema
+            </div>
+            <div class="flow-step">
+                <strong>Step 2: Policy Check</strong><br>
+                Consult policy engine (TOML files) - ALLOW, DENY, or ASK_USER
+            </div>
+            <div class="flow-step">
+                <strong>Step 3: User Confirmation</strong><br>
+                If not YOLO mode or auto-approved, display tool details and wait for user approval
+            </div>
+            <div class="flow-step">
+                <strong>Step 4: Execution</strong><br>
+                Execute tool with provided arguments, stream output if available
+            </div>
+            <div class="flow-step">
+                <strong>Step 5: Result Handling</strong><br>
+                Truncate large outputs, save to temp files, format for Gemini API
+            </div>
+            <div class="flow-step">
+                <strong>Step 6: Response Formation</strong><br>
+                Create FunctionResponse with call ID and result, add to history
+            </div>
+        </div>
+
+        <div class="success-box">
+            <strong>✅ Tool Safety Features:</strong>
+            <ul>
+                <li><strong>Folder Trust:</strong> Operations outside workspace require explicit trust</li>
+                <li><strong>Shell Validation:</strong> Commands parsed via tree-sitter, blocklisted patterns rejected</li>
+                <li><strong>Confirmation Modes:</strong> DEFAULT (ask all), AUTO_EDIT (auto-approve edits), YOLO (auto-approve all)</li>
+                <li><strong>Checkpointing:</strong> Git snapshots before destructive file operations</li>
+                <li><strong>Output Truncation:</strong> Large outputs (>10KB) saved to temp files with summary</li>
+            </ul>
+        </div>
+
+        <h3>6. Response to User</h3>
+        <pre><code>Tool results sent back to Gemini
+    ↓
+Gemini processes results and generates next response
+    ↓
+Stream events flow back through Turn → Chat → Client
+    ↓
+UI renders chunks in real-time
+    ↓
+Final message added to history
+    ↓
+If more tool calls, loop continues
+    ↓
+Otherwise, conversation pauses for user input</code></pre>
+
+        <h2>🧠 Advanced Features</h2>
+
+        <h3>Context Window Management</h3>
+        <p>
+            Each Gemini model has a token limit. The client monitors usage:
+        </p>
+        <pre><code>Available tokens = tokenLimit(model) - lastPromptTokenCount
+
+If usage > 95%:
+  - Warn user
+  - Suggest /compress command
+
+If usage > compressionThreshold (default 20%):
+  - Automatically trigger compression
+  - Use special summarization prompt
+  - Generate XML state snapshot
+  - Replace history with compressed version</code></pre>
+
+        <h3>Loop Detection</h3>
+        <p>
+            The <code>LoopDetectionService</code> monitors tool calls:
+        </p>
+        <ul>
+            <li>Tracks tool names and arguments across turns</li>
+            <li>Detects repetitive patterns (same tool, similar args)</li>
+            <li>Prompts user to disable tools causing loops</li>
+            <li>Per-session or per-prompt-ID tracking</li>
+        </ul>
+
+        <h3>Model Routing Strategies</h3>
+        <table>
+            <tr>
+                <th>Strategy</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><strong>DefaultStrategy</strong></td>
+                <td>Uses model from settings (<code>model.name</code>)</td>
+            </tr>
+            <tr>
+                <td><strong>OverrideStrategy</strong></td>
+                <td>User-specified override via <code>/model</code> command</td>
+            </tr>
+            <tr>
+                <td><strong>ClassifierStrategy</strong></td>
+                <td>ML-based routing (not yet implemented)</td>
+            </tr>
+            <tr>
+                <td><strong>FallbackStrategy</strong></td>
+                <td>Activated on quota errors - downgrades Pro → Flash</td>
+            </tr>
+        </table>
+
+        <h3>Thinking Mode (Gemini 2.5+)</h3>
+        <p>
+            Gemini 2.5 models support extended thinking. The harness:
+        </p>
+        <ul>
+            <li>Includes <code>thinkingConfig</code> in generation params</li>
+            <li>Parses thought parts from stream (subject + description)</li>
+            <li>Displays thoughts in separate UI stream</li>
+            <li>Records thoughts for session replay</li>
+            <li>Queues thoughts and attaches to next Gemini message</li>
+        </ul>
+
+        <h2>📊 Data Flow Example</h2>
+        <div class="info-box">
+            <strong>Example: User asks to create a file</strong>
+            <ol>
+                <li>User types: <code>Create a file called test.txt with "Hello, World!"</code></li>
+                <li>UI captures input, passes to <code>GeminiClient</code></li>
+                <li>Client routes to <code>gemini-2.5-pro</code>, checks context window (OK)</li>
+                <li>Chat layer adds user message to history, calls <code>generateContentStream()</code></li>
+                <li>Turn layer processes stream:
+                    <ul>
+                        <li>Chunks: <code>"I'll create"</code>, <code>" that file"</code>, <code>" for you."</code></li>
+                        <li>Tool call: <code>{ name: "Write", args: { file_path: "/workspace/test.txt", content: "Hello, World!" } }</code></li>
+                    </ul>
+                </li>
+                <li>Scheduler validates tool, checks policy (ALLOW for Write in trusted workspace)</li>
+                <li>If not YOLO, user sees: <code>"Tool: Write - Create /workspace/test.txt - [Approve/Reject]"</code></li>
+                <li>User approves, tool executes:
+                    <ul>
+                        <li>Validates path is in workspace</li>
+                        <li>Writes file to disk</li>
+                        <li>Returns <code>{ output: "Successfully wrote 13 bytes to /workspace/test.txt" }</code></li>
+                    </ul>
+                </li>
+                <li>Result sent back to Gemini in next turn</li>
+                <li>Gemini confirms: <code>"I've created test.txt with 'Hello, World!' as the content."</code></li>
+                <li>Response streamed to UI, added to history</li>
+                <li>Conversation pauses for next user input</li>
+            </ol>
+        </div>
+
+        <h2>🔧 Key Classes Reference</h2>
+
+        <table>
+            <tr>
+                <th>Class</th>
+                <th>File</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td><code>GeminiClient</code></td>
+                <td class="file-ref">core/client.ts</td>
+                <td>Main orchestrator, multi-turn management</td>
+            </tr>
+            <tr>
+                <td><code>GeminiChat</code></td>
+                <td class="file-ref">core/geminiChat.ts</td>
+                <td>Conversation history and streaming</td>
+            </tr>
+            <tr>
+                <td><code>Turn</code></td>
+                <td class="file-ref">core/turn.ts</td>
+                <td>Single turn stream processing</td>
+            </tr>
+            <tr>
+                <td><code>CoreToolScheduler</code></td>
+                <td class="file-ref">core/coreToolScheduler.ts</td>
+                <td>Tool execution orchestration</td>
+            </tr>
+            <tr>
+                <td><code>ToolRegistry</code></td>
+                <td class="file-ref">tools/tool-registry.ts</td>
+                <td>Tool registration and lookup</td>
+            </tr>
+            <tr>
+                <td><code>ChatRecordingService</code></td>
+                <td class="file-ref">services/chatRecordingService.ts</td>
+                <td>Session persistence</td>
+            </tr>
+            <tr>
+                <td><code>ChatCompressionService</code></td>
+                <td class="file-ref">services/chatCompressionService.ts</td>
+                <td>Context compression</td>
+            </tr>
+            <tr>
+                <td><code>LoopDetectionService</code></td>
+                <td class="file-ref">services/loopDetectionService.ts</td>
+                <td>Loop detection</td>
+            </tr>
+            <tr>
+                <td><code>ContentGenerator</code></td>
+                <td class="file-ref">core/contentGenerator.ts</td>
+                <td>API abstraction (Gemini/Vertex/CodeAssist)</td>
+            </tr>
+        </table>
+
+        <h2>🎯 Summary</h2>
+        <p>
+            The Gemini CLI agent harness is a production-grade framework that:
+        </p>
+        <ul>
+            <li>✅ Manages complex multi-turn conversations with tool execution</li>
+            <li>✅ Provides safety through confirmations, policies, and sandboxing</li>
+            <li>✅ Handles errors gracefully with retries and fallbacks</li>
+            <li>✅ Scales conversations with automatic compression</li>
+            <li>✅ Prevents infinite loops through detection mechanisms</li>
+            <li>✅ Supports extensibility via MCP and custom tools</li>
+            <li>✅ Maintains observability through telemetry and recording</li>
+        </ul>
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+            <a href="data-flow.html" class="back-link" style="background: #34a853;">Data Flow Diagram →</a>
+        </div>
+    </div>
+</body>
+</html>

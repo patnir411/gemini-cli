@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Data Flow Visualization</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+
+        h1 { color: #4285f4; margin-bottom: 30px; }
+        h2 { color: #4285f4; margin-top: 40px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+
+        .flow-container {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            gap: 20px;
+        }
+
+        .flow-box {
+            flex: 1;
+            background: white;
+            border: 2px solid;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 120px;
+        }
+
+        .flow-box h3 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .flow-box ul {
+            list-style: none;
+            font-size: 0.9em;
+        }
+
+        .flow-box li::before {
+            content: "▸ ";
+            color: #4285f4;
+        }
+
+        .arrow {
+            font-size: 2em;
+            color: #666;
+            flex: 0 0 40px;
+            text-align: center;
+        }
+
+        .arrow-down {
+            text-align: center;
+            font-size: 2em;
+            color: #666;
+            margin: 10px 0;
+        }
+
+        .flow-user { border-color: #2196f3; background: linear-gradient(135deg, #fff 0%, #e3f2fd 100%); }
+        .flow-user h3 { color: #2196f3; }
+
+        .flow-client { border-color: #9c27b0; background: linear-gradient(135deg, #fff 0%, #f3e5f5 100%); }
+        .flow-client h3 { color: #9c27b0; }
+
+        .flow-api { border-color: #4caf50; background: linear-gradient(135deg, #fff 0%, #e8f5e9 100%); }
+        .flow-api h3 { color: #4caf50; }
+
+        .flow-tool { border-color: #ff9800; background: linear-gradient(135deg, #fff 0%, #fff3e0 100%); }
+        .flow-tool h3 { color: #ff9800; }
+
+        .sequence {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .sequence-step {
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4285f4;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .sequence-step strong {
+            color: #4285f4;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .data-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .data-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .data-card h4 {
+            color: #4285f4;
+            margin-bottom: 10px;
+        }
+
+        .data-card pre {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <h1>🔄 Data Flow Visualization</h1>
+        <p style="font-size: 1.1em; color: #666; margin-bottom: 30px;">
+            Complete data flow diagrams showing how information moves through the Gemini CLI agent harness
+        </p>
+
+        <h2>📤 User Input to AI Response Flow</h2>
+        <div class="flow-container">
+            <div class="flow-row">
+                <div class="flow-box flow-user">
+                    <h3>1. User Input</h3>
+                    <ul>
+                        <li>Text prompt</li>
+                        <li>File attachments (@)</li>
+                        <li>IDE context</li>
+                        <li>Command history</li>
+                    </ul>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box flow-client">
+                    <h3>2. Input Processing</h3>
+                    <ul>
+                        <li>Command detection</li>
+                        <li>Syntax highlighting</li>
+                        <li>Context assembly</li>
+                        <li>createUserContent()</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="arrow-down">⬇</div>
+
+            <div class="flow-row">
+                <div class="flow-box flow-client">
+                    <h3>3. Client Layer</h3>
+                    <ul>
+                        <li>Model selection</li>
+                        <li>Token counting</li>
+                        <li>History preparation</li>
+                        <li>Tool declarations</li>
+                    </ul>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box flow-api">
+                    <h3>4. API Request</h3>
+                    <ul>
+                        <li>System prompts</li>
+                        <li>User message</li>
+                        <li>Tool schemas</li>
+                        <li>Generation config</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="arrow-down">⬇</div>
+
+            <div class="flow-row">
+                <div class="flow-box flow-api">
+                    <h3>5. Gemini Processing</h3>
+                    <ul>
+                        <li>Context analysis</li>
+                        <li>Response generation</li>
+                        <li>Tool selection</li>
+                        <li>Stream chunks</li>
+                    </ul>
+                </div>
+                <div class="arrow">→</div>
+                <div class="flow-box flow-client">
+                    <h3>6. Stream Processing</h3>
+                    <ul>
+                        <li>Event parsing</li>
+                        <li>Thought extraction</li>
+                        <li>Tool call detection</li>
+                        <li>Citation collection</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="arrow-down">⬇</div>
+
+            <div class="flow-row">
+                <div class="flow-box flow-user">
+                    <h3>7. UI Rendering</h3>
+                    <ul>
+                        <li>Chunk display</li>
+                        <li>Markdown rendering</li>
+                        <li>Syntax highlighting</li>
+                        <li>Progress indicators</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <h2>🛠️ Tool Execution Data Flow</h2>
+        <div class="flow-container">
+            <div class="sequence">
+                <div class="sequence-step">
+                    <strong>1. Tool Call Detection</strong>
+                    Stream contains <code>functionCalls: [{ id, name, args }]</code>
+                </div>
+                <div class="sequence-step">
+                    <strong>2. Tool Registry Lookup</strong>
+                    Find tool definition, get schema, prepare invocation
+                </div>
+                <div class="sequence-step">
+                    <strong>3. Policy Check</strong>
+                    Consult TOML policies → Result: ALLOW, DENY, or ASK_USER
+                </div>
+                <div class="sequence-step">
+                    <strong>4. User Confirmation (if needed)</strong>
+                    Display tool name, args, file paths → Wait for approval
+                </div>
+                <div class="sequence-step">
+                    <strong>5. Tool Execution</strong>
+                    Execute with AbortSignal support → Stream output → Capture result
+                </div>
+                <div class="sequence-step">
+                    <strong>6. Result Processing</strong>
+                    Truncate large outputs → Save to temp files → Format as FunctionResponse
+                </div>
+                <div class="sequence-step">
+                    <strong>7. Response to API</strong>
+                    Send <code>{ functionResponse: { id, name, response: { output } } }</code>
+                </div>
+                <div class="sequence-step">
+                    <strong>8. Next Turn</strong>
+                    Gemini processes tool results → Generates next response
+                </div>
+            </div>
+        </div>
+
+        <h2>📊 Key Data Structures</h2>
+        <div class="data-types">
+            <div class="data-card">
+                <h4>User Message</h4>
+                <pre>{
+  role: "user",
+  parts: [
+    { text: "prompt text" },
+    { inlineData: { mimeType, data } },
+    { fileData: { fileUri } }
+  ]
+}</pre>
+            </div>
+
+            <div class="data-card">
+                <h4>Model Response</h4>
+                <pre>{
+  role: "model",
+  parts: [
+    { text: "response text" },
+    { thought: "reasoning..." },
+    { functionCall: {
+        id, name, args
+      } }
+  ]
+}</pre>
+            </div>
+
+            <div class="data-card">
+                <h4>Function Response</h4>
+                <pre>{
+  role: "user",
+  parts: [{
+    functionResponse: {
+      id: "call_id",
+      name: "tool_name",
+      response: {
+        output: "result"
+      }
+    }
+  }]
+}</pre>
+            </div>
+
+            <div class="data-card">
+                <h4>Stream Event</h4>
+                <pre>{
+  type: "CHUNK" | "THOUGHT"
+        | "TOOL_CALLS"
+        | "FINISHED" | "ERROR",
+  text?: string,
+  toolCalls?: [...],
+  finishReason?: string
+}</pre>
+            </div>
+        </div>
+
+        <h2>💾 State Persistence Flow</h2>
+        <div class="sequence">
+            <div class="sequence-step">
+                <strong>Message Recording</strong>
+                Each turn → ChatRecordingService → JSON file in <code>~/.gemini/tmp/&lt;hash&gt;/chats/</code>
+            </div>
+            <div class="sequence-step">
+                <strong>Tool Call Enrichment</strong>
+                Tool metadata added → Tool registry lookup → Confirmation status → Execution time
+            </div>
+            <div class="sequence-step">
+                <strong>Token Tracking</strong>
+                Usage metadata queued → Attached to next Gemini message → Recorded in session
+            </div>
+            <div class="sequence-step">
+                <strong>Thought Recording</strong>
+                Thoughts queued → Attached to next Gemini message → Persisted for replay
+            </div>
+            <div class="sequence-step">
+                <strong>Session Resume</strong>
+                Load JSON file → Reconstruct history → Restore conversation state
+            </div>
+        </div>
+
+        <h2>🔄 Context Compression Flow</h2>
+        <div class="flow-container">
+            <div class="sequence">
+                <div class="sequence-step">
+                    <strong>Trigger Detection</strong>
+                    Token usage > threshold (default 20%) OR user runs <code>/compress</code>
+                </div>
+                <div class="sequence-step">
+                    <strong>Compression Request</strong>
+                    Send special prompt to Gemini: "Summarize this conversation into XML snapshot"
+                </div>
+                <div class="sequence-step">
+                    <strong>State Snapshot Generation</strong>
+                    Gemini creates structured XML:
+                    <pre>&lt;state_snapshot&gt;
+  &lt;overall_goal&gt;...&lt;/overall_goal&gt;
+  &lt;key_knowledge&gt;...&lt;/key_knowledge&gt;
+  &lt;file_system_state&gt;...&lt;/file_system_state&gt;
+  &lt;recent_actions&gt;...&lt;/recent_actions&gt;
+  &lt;current_plan&gt;...&lt;/current_plan&gt;
+&lt;/state_snapshot&gt;</pre>
+                </div>
+                <div class="sequence-step">
+                    <strong>History Replacement</strong>
+                    Old history cleared → Snapshot becomes new system message → Token count reduced
+                </div>
+                <div class="sequence-step">
+                    <strong>Notification</strong>
+                    User sees compression event with before/after token counts
+                </div>
+            </div>
+        </div>
+
+        <h2>🔐 Authentication Data Flow</h2>
+        <div class="sequence">
+            <div class="sequence-step">
+                <strong>1. Credential Loading</strong>
+                Check keychain → Check settings → Check environment variables
+            </div>
+            <div class="sequence-step">
+                <strong>2. Auth Type Selection</strong>
+                LOGIN_WITH_GOOGLE → OAuth 2.0 flow<br>
+                USE_GEMINI → API key from storage<br>
+                USE_VERTEX_AI → ADC (Application Default Credentials)<br>
+                CLOUD_SHELL → Automatic auth
+            </div>
+            <div class="sequence-step">
+                <strong>3. OAuth Flow (if LOGIN_WITH_GOOGLE)</strong>
+                Device code request → User approves → Token exchange → Store in keychain
+            </div>
+            <div class="sequence-step">
+                <strong>4. Content Generator Creation</strong>
+                Initialize GoogleGenAI with credentials → Wrap in LoggingContentGenerator
+            </div>
+            <div class="sequence-step">
+                <strong>5. Token Refresh</strong>
+                On 401 errors → Refresh OAuth token → Retry request
+            </div>
+        </div>
+
+        <h2>📡 MCP Data Flow</h2>
+        <div class="flow-container">
+            <div class="sequence">
+                <div class="sequence-step">
+                    <strong>1. Server Discovery</strong>
+                    Load from settings → Extension-provided → User commands
+                </div>
+                <div class="sequence-step">
+                    <strong>2. Connection Establishment</strong>
+                    Stdio spawn OR HTTP/SSE connection → Capability negotiation
+                </div>
+                <div class="sequence-step">
+                    <strong>3. Tool Discovery</strong>
+                    Request <code>tools/list</code> → Receive tool schemas → Register in ToolRegistry
+                </div>
+                <div class="sequence-step">
+                    <strong>4. OAuth (if needed)</strong>
+                    Detect WWW-Authenticate → Discover endpoints → PKCE flow → Store tokens
+                </div>
+                <div class="sequence-step">
+                    <strong>5. Tool Invocation</strong>
+                    Gemini calls MCP tool → Forward to MCP server → Receive result → Convert to Gemini format
+                </div>
+                <div class="sequence-step">
+                    <strong>6. Error Handling</strong>
+                    MCP error response → Parse <code>error.isError</code> → Format for Gemini
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+        </div>
+    </div>
+</body>
+</html>

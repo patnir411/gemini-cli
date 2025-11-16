@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Full Architecture Diagram</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h1 {
+            color: #4285f4;
+            margin-bottom: 10px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: #357ae8;
+        }
+
+        .diagram-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .architecture-diagram {
+            min-width: 1200px;
+        }
+
+        .layer {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .layer-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .component {
+            background: white;
+            border: 2px solid;
+            border-radius: 6px;
+            padding: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .component:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .component h4 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .component ul {
+            list-style: none;
+            font-size: 0.9em;
+        }
+
+        .component li {
+            padding: 3px 0;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .component li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .component .file-path {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 8px;
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 3px;
+        }
+
+        /* Layer-specific styles */
+        .layer-ui {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        }
+
+        .layer-ui .layer-title {
+            background: #2196f3;
+            color: white;
+        }
+
+        .layer-ui .component {
+            border-color: #2196f3;
+        }
+
+        .layer-ui .component h4 {
+            color: #1976d2;
+        }
+
+        .layer-client {
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+        }
+
+        .layer-client .layer-title {
+            background: #9c27b0;
+            color: white;
+        }
+
+        .layer-client .component {
+            border-color: #9c27b0;
+        }
+
+        .layer-client .component h4 {
+            color: #7b1fa2;
+        }
+
+        .layer-chat {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        }
+
+        .layer-chat .layer-title {
+            background: #4caf50;
+            color: white;
+        }
+
+        .layer-chat .component {
+            border-color: #4caf50;
+        }
+
+        .layer-chat .component h4 {
+            color: #388e3c;
+        }
+
+        .layer-turn {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        }
+
+        .layer-turn .layer-title {
+            background: #ff9800;
+            color: white;
+        }
+
+        .layer-turn .component {
+            border-color: #ff9800;
+        }
+
+        .layer-turn .component h4 {
+            color: #f57c00;
+        }
+
+        .layer-tools {
+            background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
+        }
+
+        .layer-tools .layer-title {
+            background: #e91e63;
+            color: white;
+        }
+
+        .layer-tools .component {
+            border-color: #e91e63;
+        }
+
+        .layer-tools .component h4 {
+            color: #c2185b;
+        }
+
+        .layer-external {
+            background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+        }
+
+        .layer-external .layer-title {
+            background: #009688;
+            color: white;
+        }
+
+        .layer-external .component {
+            border-color: #009688;
+        }
+
+        .layer-external .component h4 {
+            color: #00796b;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            font-size: 2em;
+            color: #666;
+            margin: 10px 0;
+        }
+
+        .legend {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .legend h3 {
+            color: #4285f4;
+            margin-bottom: 15px;
+        }
+
+        .legend-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 2px solid #ccc;
+        }
+
+        @media (max-width: 768px) {
+            .architecture-diagram {
+                min-width: 100%;
+            }
+            .components {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <header>
+            <h1>🏗️ Gemini CLI - Full Architecture Diagram</h1>
+            <p>Interactive visualization of the multi-layer agent harness architecture</p>
+        </header>
+
+        <div class="diagram-container">
+            <div class="architecture-diagram">
+
+                <!-- USER LAYER -->
+                <div class="layer layer-ui">
+                    <div class="layer-title">👤 USER INTERFACE LAYER (packages/cli)</div>
+                    <div class="components">
+                        <div class="component">
+                            <h4>🎨 React/Ink UI</h4>
+                            <ul>
+                                <li>AppContainer.tsx</li>
+                                <li>DefaultAppLayout</li>
+                                <li>InputPrompt</li>
+                                <li>GeminiMessage</li>
+                                <li>DialogManager</li>
+                            </ul>
+                            <div class="file-path">src/ui/components/</div>
+                        </div>
+                        <div class="component">
+                            <h4>⌨️ Command System</h4>
+                            <ul>
+                                <li>CommandService</li>
+                                <li>BuiltinCommandLoader</li>
+                                <li>FileCommandLoader</li>
+                                <li>McpPromptLoader</li>
+                                <li>30+ slash commands</li>
+                            </ul>
+                            <div class="file-path">src/commands/ & src/services/</div>
+                        </div>
+                        <div class="component">
+                            <h4>⚙️ Configuration UI</h4>
+                            <ul>
+                                <li>Settings dialog</li>
+                                <li>Theme selector</li>
+                                <li>Auth dialog</li>
+                                <li>Model selection</li>
+                            </ul>
+                            <div class="file-path">src/config/</div>
+                        </div>
+                        <div class="component">
+                            <h4>📊 Display Components</h4>
+                            <ul>
+                                <li>ToolGroupMessage</li>
+                                <li>TodoTray</li>
+                                <li>ContextSummary</li>
+                                <li>LoadingIndicator</li>
+                            </ul>
+                            <div class="file-path">src/ui/components/messages/</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">⬇️</div>
+
+                <!-- CLIENT LAYER -->
+                <div class="layer layer-client">
+                    <div class="layer-title">🧠 GEMINI CLIENT LAYER (packages/core/src/core)</div>
+                    <div class="components">
+                        <div class="component">
+                            <h4>🎯 GeminiClient</h4>
+                            <ul>
+                                <li>Main orchestrator</li>
+                                <li>Multi-turn management</li>
+                                <li>Loop detection</li>
+                                <li>Context overflow</li>
+                                <li>Model stickiness</li>
+                            </ul>
+                            <div class="file-path">core/client.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔀 Model Routing</h4>
+                            <ul>
+                                <li>DefaultStrategy</li>
+                                <li>FallbackStrategy</li>
+                                <li>ClassifierStrategy</li>
+                                <li>Quota-based fallback</li>
+                            </ul>
+                            <div class="file-path">routing/strategies/</div>
+                        </div>
+                        <div class="component">
+                            <h4>🗜️ Chat Compression</h4>
+                            <ul>
+                                <li>Context summarization</li>
+                                <li>XML state snapshots</li>
+                                <li>Token optimization</li>
+                                <li>History preservation</li>
+                            </ul>
+                            <div class="file-path">services/chatCompressionService.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔍 Loop Detection</h4>
+                            <ul>
+                                <li>Repetitive tool tracking</li>
+                                <li>User confirmation</li>
+                                <li>Per-session monitoring</li>
+                            </ul>
+                            <div class="file-path">services/loopDetectionService.ts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">⬇️</div>
+
+                <!-- CHAT LAYER -->
+                <div class="layer layer-chat">
+                    <div class="layer-title">💬 GEMINI CHAT LAYER (packages/core/src/core)</div>
+                    <div class="components">
+                        <div class="component">
+                            <h4>📝 GeminiChat</h4>
+                            <ul>
+                                <li>History management</li>
+                                <li>Curated vs comprehensive</li>
+                                <li>Content validation</li>
+                                <li>Retry logic (2 attempts)</li>
+                                <li>Tool declarations</li>
+                            </ul>
+                            <div class="file-path">core/geminiChat.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>💾 Chat Recording</h4>
+                            <ul>
+                                <li>Session persistence</li>
+                                <li>Message recording</li>
+                                <li>Tool call enrichment</li>
+                                <li>Token tracking</li>
+                                <li>Thought queuing</li>
+                            </ul>
+                            <div class="file-path">services/chatRecordingService.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>📊 Token Management</h4>
+                            <ul>
+                                <li>Usage tracking</li>
+                                <li>Context window limits</li>
+                                <li>Overflow detection</li>
+                                <li>Compression triggers</li>
+                            </ul>
+                            <div class="file-path">core/tokenLimits.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔄 Stream Validation</h4>
+                            <ul>
+                                <li>InvalidStreamError</li>
+                                <li>Finish reason checks</li>
+                                <li>Response text validation</li>
+                                <li>Auto-retry with temp=1</li>
+                            </ul>
+                            <div class="file-path">core/geminiChat.ts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">⬇️</div>
+
+                <!-- TURN LAYER -->
+                <div class="layer layer-turn">
+                    <div class="layer-title">🔄 TURN LAYER (packages/core/src/core)</div>
+                    <div class="components">
+                        <div class="component">
+                            <h4>⚡ Turn Processing</h4>
+                            <ul>
+                                <li>Stream event handling</li>
+                                <li>CHUNK events</li>
+                                <li>RETRY signals</li>
+                                <li>FINISHED events</li>
+                                <li>ERROR handling</li>
+                            </ul>
+                            <div class="file-path">core/turn.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🤔 Thought Processing</h4>
+                            <ul>
+                                <li>Thinking mode support</li>
+                                <li>Thought extraction</li>
+                                <li>Subject/description parsing</li>
+                                <li>Separate event stream</li>
+                            </ul>
+                            <div class="file-path">core/turn.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔧 Tool Call Extraction</h4>
+                            <ul>
+                                <li>FunctionCall detection</li>
+                                <li>Pending call queue</li>
+                                <li>Argument parsing</li>
+                                <li>Tool routing</li>
+                            </ul>
+                            <div class="file-path">core/turn.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>📚 Citation Handling</h4>
+                            <ul>
+                                <li>Source attribution</li>
+                                <li>Grounding chunks</li>
+                                <li>Deduplication (Set)</li>
+                                <li>Web URIs & titles</li>
+                            </ul>
+                            <div class="file-path">core/turn.ts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">⬇️</div>
+
+                <!-- TOOLS LAYER -->
+                <div class="layer layer-tools">
+                    <div class="layer-title">🛠️ TOOL EXECUTION LAYER (packages/core/src/tools)</div>
+                    <div class="components">
+                        <div class="component">
+                            <h4>📋 Tool Registry</h4>
+                            <ul>
+                                <li>Built-in tools (15+)</li>
+                                <li>MCP tools</li>
+                                <li>Discovered tools</li>
+                                <li>Extension tools</li>
+                                <li>Tool metadata</li>
+                            </ul>
+                            <div class="file-path">tools/tool-registry.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>⏱️ CoreToolScheduler</h4>
+                            <ul>
+                                <li>Sequential execution</li>
+                                <li>Confirmation flow</li>
+                                <li>Status tracking</li>
+                                <li>Output streaming</li>
+                                <li>Error recovery</li>
+                            </ul>
+                            <div class="file-path">core/coreToolScheduler.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔐 Policy Engine</h4>
+                            <ul>
+                                <li>TOML policy files</li>
+                                <li>ALLOW/DENY/ASK_USER</li>
+                                <li>Pattern matching</li>
+                                <li>Tier priorities</li>
+                                <li>Rule validation</li>
+                            </ul>
+                            <div class="file-path">policy/policyEngine.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🧰 Built-in Tools</h4>
+                            <ul>
+                                <li>Read, Write, Edit</li>
+                                <li>Shell, Bash</li>
+                                <li>Grep, Glob</li>
+                                <li>Web-fetch, Web-search</li>
+                                <li>Git, Todo</li>
+                            </ul>
+                            <div class="file-path">tools/*.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔌 MCP Tools</h4>
+                            <ul>
+                                <li>Dynamic discovery</li>
+                                <li>Multi-server support</li>
+                                <li>OAuth integration</li>
+                                <li>Schema validation</li>
+                                <li>Error handling</li>
+                            </ul>
+                            <div class="file-path">tools/mcp-*.ts</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">⬇️</div>
+
+                <!-- EXTERNAL LAYER -->
+                <div class="layer layer-external">
+                    <div class="layer-title">🌐 EXTERNAL SERVICES & APIS</div>
+                    <div class="components">
+                        <div class="component">
+                            <h4>🤖 Gemini API</h4>
+                            <ul>
+                                <li>@google/genai SDK</li>
+                                <li>Streaming generation</li>
+                                <li>Token counting</li>
+                                <li>Embeddings</li>
+                                <li>Thinking mode</li>
+                            </ul>
+                            <div class="file-path">core/contentGenerator.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>☁️ Vertex AI</h4>
+                            <ul>
+                                <li>Enterprise deployment</li>
+                                <li>ADC authentication</li>
+                                <li>Project/location config</li>
+                                <li>Cloud endpoints</li>
+                            </ul>
+                            <div class="file-path">core/contentGenerator.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>💼 Code Assist</h4>
+                            <ul>
+                                <li>OAuth 2.0 flow</li>
+                                <li>Tier management</li>
+                                <li>User onboarding</li>
+                                <li>Cloud endpoints</li>
+                            </ul>
+                            <div class="file-path">code_assist/server.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>🔍 Web Services</h4>
+                            <ul>
+                                <li>Google Search (grounding)</li>
+                                <li>Web fetch (HTML→text)</li>
+                                <li>Citation extraction</li>
+                                <li>Private IP detection</li>
+                            </ul>
+                            <div class="file-path">tools/web-*.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>📊 Telemetry</h4>
+                            <ul>
+                                <li>OpenTelemetry</li>
+                                <li>Cloud Logging</li>
+                                <li>Trace export</li>
+                                <li>Metrics collection</li>
+                            </ul>
+                            <div class="file-path">telemetry/sdk.ts</div>
+                        </div>
+                        <div class="component">
+                            <h4>💻 IDE Integration</h4>
+                            <ul>
+                                <li>VS Code MCP server</li>
+                                <li>Diff manager</li>
+                                <li>Context tracking</li>
+                                <li>Stdio/HTTP transport</li>
+                            </ul>
+                            <div class="file-path">ide/ide-client.ts</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="legend">
+            <h3>🎨 Layer Color Legend</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);"></div>
+                    <span><strong>UI Layer</strong> - User Interface (React/Ink)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);"></div>
+                    <span><strong>Client Layer</strong> - Orchestration & Routing</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);"></div>
+                    <span><strong>Chat Layer</strong> - Conversation Management</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);"></div>
+                    <span><strong>Turn Layer</strong> - Stream Processing</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);"></div>
+                    <span><strong>Tools Layer</strong> - Tool Execution</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);"></div>
+                    <span><strong>External Layer</strong> - APIs & Services</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+            <h3 style="color: #856404; margin-bottom: 10px;">💡 Architecture Highlights</h3>
+            <ul style="margin-left: 40px; color: #856404;">
+                <li><strong>Multi-Layer Design:</strong> Clear separation of concerns across 6 distinct layers</li>
+                <li><strong>Event-Driven:</strong> AsyncGenerators and streaming throughout</li>
+                <li><strong>Resilient:</strong> Retry logic, fallbacks, and error recovery at every level</li>
+                <li><strong>Extensible:</strong> Plugin architecture via MCP, extensions, and custom tools</li>
+                <li><strong>Observable:</strong> Full telemetry with OpenTelemetry integration</li>
+                <li><strong>Secure:</strong> Policy engine, sandbox execution, and folder trust</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+        </div>
+    </div>
+</body>
+</html>

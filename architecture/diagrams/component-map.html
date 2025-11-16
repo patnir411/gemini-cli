@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Component Relationship Map</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .back-link { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; }
+        h1 { color: #4285f4; margin-bottom: 10px; }
+        h2 { color: #4285f4; margin-top: 30px; margin-bottom: 15px; }
+        .map-container { background: #f8f9fa; border-radius: 8px; padding: 30px; margin: 20px 0; overflow-x: auto; }
+        .package { border: 3px solid #4285f4; border-radius: 12px; padding: 20px; margin: 20px 0; background: white; }
+        .package-title { font-size: 1.5em; color: #4285f4; font-weight: bold; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
+        .modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+        .module { border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; background: #fafafa; transition: all 0.3s; }
+        .module:hover { border-color: #4285f4; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .module-name { font-weight: bold; color: #34a853; margin-bottom: 8px; }
+        .module-file { font-size: 0.85em; color: #666; font-family: monospace; background: #f0f0f0; padding: 3px 6px; border-radius: 3px; display: inline-block; margin-bottom: 8px; }
+        .module-desc { font-size: 0.9em; color: #333; margin-bottom: 8px; }
+        .dependencies { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0; }
+        .dep-label { font-size: 0.8em; color: #666; margin-bottom: 4px; }
+        .dep-tag { display: inline-block; background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 10px; font-size: 0.75em; margin: 2px; }
+        .legend { background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        .legend-item { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <h1>🗺️ Component Relationship Map</h1>
+        <p style="font-size: 1.1em; color: #666; margin-bottom: 20px;">
+            Comprehensive map of components and their dependencies across the Gemini CLI codebase
+        </p>
+
+        <div class="legend">
+            <strong>📖 How to Read This Map:</strong>
+            <div class="legend-item">• Each <strong>package</strong> is shown in a bordered section</div>
+            <div class="legend-item">• <strong>Modules</strong> within packages show their key dependencies</div>
+            <div class="legend-item">• <strong>Hover</strong> over modules to highlight them</div>
+            <div class="legend-item">• <strong>Dependencies</strong> show what each module imports and uses</div>
+        </div>
+
+        <div class="map-container">
+
+            <!-- CLI PACKAGE -->
+            <div class="package">
+                <div class="package-title">📦 packages/cli - User Interface</div>
+                <div class="modules">
+                    <div class="module">
+                        <div class="module-name">AppContainer</div>
+                        <div class="module-file">src/ui/components/AppContainer.tsx</div>
+                        <div class="module-desc">Main React component orchestrating the UI</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">GeminiClient (core)</span>
+                            <span class="dep-tag">Settings</span>
+                            <span class="dep-tag">CommandService</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">InputPrompt</div>
+                        <div class="module-file">src/ui/components/InputPrompt.tsx</div>
+                        <div class="module-desc">User input with auto-completion</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">TextBuffer</span>
+                            <span class="dep-tag">SlashCompletion</span>
+                            <span class="dep-tag">AtCompletion</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">CommandService</div>
+                        <div class="module-file">src/services/CommandService.ts</div>
+                        <div class="module-desc">Command discovery and execution</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">BuiltinCommandLoader</span>
+                            <span class="dep-tag">FileCommandLoader</span>
+                            <span class="dep-tag">McpPromptLoader</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Settings Management</div>
+                        <div class="module-file">src/config/settings.ts</div>
+                        <div class="module-desc">Multi-tier settings loading</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">DeepMerge</span>
+                            <span class="dep-tag">EnvVarResolver</span>
+                            <span class="dep-tag">Storage (core)</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">DialogManager</div>
+                        <div class="module-file">src/ui/components/DialogManager.tsx</div>
+                        <div class="module-desc">Modal dialogs for settings, auth, etc.</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">RadioButtonSelect</span>
+                            <span class="dep-tag">AuthDialog</span>
+                            <span class="dep-tag">SettingsDialog</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">GeminiMessage</div>
+                        <div class="module-file">src/ui/components/messages/GeminiMessage.tsx</div>
+                        <div class="module-desc">Renders AI responses with markdown</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">AnsiOutput</span>
+                            <span class="dep-tag">MarkdownUtilities</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CORE PACKAGE -->
+            <div class="package">
+                <div class="package-title">📦 packages/core - Business Logic & AI Engine</div>
+                <div class="modules">
+                    <div class="module">
+                        <div class="module-name">GeminiClient</div>
+                        <div class="module-file">src/core/client.ts</div>
+                        <div class="module-desc">Main orchestrator for AI interactions</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">GeminiChat</span>
+                            <span class="dep-tag">RoutingStrategy</span>
+                            <span class="dep-tag">LoopDetection</span>
+                            <span class="dep-tag">ChatCompression</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">GeminiChat</div>
+                        <div class="module-file">src/core/geminiChat.ts</div>
+                        <div class="module-desc">Conversation history and streaming</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">ContentGenerator</span>
+                            <span class="dep-tag">Turn</span>
+                            <span class="dep-tag">ChatRecording</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Turn</div>
+                        <div class="module-file">src/core/turn.ts</div>
+                        <div class="module-desc">Single turn stream processing</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">StreamEvent types</span>
+                            <span class="dep-tag">parseThought</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">CoreToolScheduler</div>
+                        <div class="module-file">src/core/coreToolScheduler.ts</div>
+                        <div class="module-desc">Tool execution orchestration</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">ToolRegistry</span>
+                            <span class="dep-tag">PolicyEngine</span>
+                            <span class="dep-tag">ToolInvocation</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">ToolRegistry</div>
+                        <div class="module-file">src/tools/tool-registry.ts</div>
+                        <div class="module-desc">Central tool repository</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">Built-in Tools</span>
+                            <span class="dep-tag">MCP Tools</span>
+                            <span class="dep-tag">Discovered Tools</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">ContentGenerator</div>
+                        <div class="module-file">src/core/contentGenerator.ts</div>
+                        <div class="module-desc">API abstraction layer</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">@google/genai</span>
+                            <span class="dep-tag">LoggingWrapper</span>
+                            <span class="dep-tag">RetryLogic</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">PolicyEngine</div>
+                        <div class="module-file">src/policy/policyEngine.ts</div>
+                        <div class="module-desc">TOML-based access control</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">TomlLoader</span>
+                            <span class="dep-tag">RuleEvaluator</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">MCPClientManager</div>
+                        <div class="module-file">src/tools/mcp-client-manager.ts</div>
+                        <div class="module-desc">Manages MCP server connections</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">MCPClient</span>
+                            <span class="dep-tag">OAuthProvider</span>
+                            <span class="dep-tag">@modelcontextprotocol/sdk</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">ChatRecordingService</div>
+                        <div class="module-file">src/services/chatRecordingService.ts</div>
+                        <div class="module-desc">Session persistence</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">Storage</span>
+                            <span class="dep-tag">JSON serialization</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">AgentExecutor</div>
+                        <div class="module-file">src/agents/agent-executor.ts</div>
+                        <div class="module-desc">Multi-step agent workflows</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">AgentRegistry</span>
+                            <span class="dep-tag">SchemaValidator</span>
+                            <span class="dep-tag">GeminiClient</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">TelemetrySDK</div>
+                        <div class="module-file">src/telemetry/sdk.ts</div>
+                        <div class="module-desc">OpenTelemetry integration</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">@opentelemetry/*</span>
+                            <span class="dep-tag">OTLP Exporters</span>
+                            <span class="dep-tag">GCP Exporters</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">IDEClient</div>
+                        <div class="module-file">src/ide/ide-client.ts</div>
+                        <div class="module-desc">VS Code MCP integration</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">MCPClient</span>
+                            <span class="dep-tag">DiffManager</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BUILT-IN TOOLS -->
+            <div class="package">
+                <div class="package-title">🛠️ Built-in Tools (packages/core/src/tools)</div>
+                <div class="modules">
+                    <div class="module">
+                        <div class="module-name">Read Tool</div>
+                        <div class="module-file">read-file.ts</div>
+                        <div class="module-desc">File reading with encoding detection</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">FileUtils</span>
+                            <span class="dep-tag">WorkspaceContext</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Write Tool</div>
+                        <div class="module-file">write-file.ts</div>
+                        <div class="module-desc">File creation and overwriting</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">FileUtils</span>
+                            <span class="dep-tag">PathValidation</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Edit Tool</div>
+                        <div class="module-file">edit-file.ts</div>
+                        <div class="module-desc">String replacement in files</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">EditCorrector</span>
+                            <span class="dep-tag">Git Checkpointing</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Shell Tool</div>
+                        <div class="module-file">shell.ts</div>
+                        <div class="module-desc">Command execution with streaming</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">ShellUtils</span>
+                            <span class="dep-tag">tree-sitter (parsing)</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Grep Tool</div>
+                        <div class="module-file">grep.ts</div>
+                        <div class="module-desc">Content search via ripgrep</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">ripgrep</span>
+                            <span class="dep-tag">WorkspaceContext</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Glob Tool</div>
+                        <div class="module-file">glob.ts</div>
+                        <div class="module-desc">File pattern matching</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">FileSearch</span>
+                            <span class="dep-tag">picomatch</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">WebFetch Tool</div>
+                        <div class="module-file">web-fetch.ts</div>
+                        <div class="module-desc">Web content fetching</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">undici</span>
+                            <span class="dep-tag">html-to-text</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">WebSearch Tool</div>
+                        <div class="module-file">web-search.ts</div>
+                        <div class="module-desc">Google Search via grounding</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">ContentGenerator</span>
+                            <span class="dep-tag">Grounding API</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- A2A SERVER -->
+            <div class="package">
+                <div class="package-title">📦 packages/a2a-server - Agent-to-Agent</div>
+                <div class="modules">
+                    <div class="module">
+                        <div class="module-name">A2A Server</div>
+                        <div class="module-file">src/http/server.ts</div>
+                        <div class="module-desc">Express server for A2A protocol</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">@a2a-js/sdk</span>
+                            <span class="dep-tag">express</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Agent Implementation</div>
+                        <div class="module-file">src/agent/agent.ts</div>
+                        <div class="module-desc">A2A agent implementation</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">GeminiClient (core)</span>
+                            <span class="dep-tag">CommandHandlers</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VSCODE EXTENSION -->
+            <div class="package">
+                <div class="package-title">📦 packages/vscode-ide-companion - VS Code Extension</div>
+                <div class="modules">
+                    <div class="module">
+                        <div class="module-name">IDE Server</div>
+                        <div class="module-file">src/ide-server.ts</div>
+                        <div class="module-desc">MCP server for IDE integration</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">@modelcontextprotocol/sdk</span>
+                            <span class="dep-tag">express</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Diff Manager</div>
+                        <div class="module-file">src/diff-manager.ts</div>
+                        <div class="module-desc">Side-by-side diff viewing</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">vscode API</span>
+                        </div>
+                    </div>
+
+                    <div class="module">
+                        <div class="module-name">Open Files Manager</div>
+                        <div class="module-file">src/open-files-manager.ts</div>
+                        <div class="module-desc">Workspace state tracking</div>
+                        <div class="dependencies">
+                            <div class="dep-label">Uses:</div>
+                            <span class="dep-tag">vscode API</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <h2>🔗 Key Dependencies Between Packages</h2>
+        <div class="map-container">
+            <div style="padding: 20px; background: white; border-radius: 8px;">
+                <pre style="background: #f5f5f5; padding: 15px; border-radius: 6px; overflow-x: auto;">
+packages/cli
+    ↓ imports
+packages/core (GeminiClient, ToolRegistry, Settings, etc.)
+    ↓ uses
+@google/genai (Gemini API SDK)
+@modelcontextprotocol/sdk (MCP integration)
+
+packages/vscode-ide-companion
+    ↓ communicates with
+packages/cli (via MCP over HTTP/Stdio)
+    ↓ uses
+packages/core/ide-client.ts
+
+packages/a2a-server
+    ↓ imports
+packages/core (GeminiClient, Agent system)
+    ↓ uses
+@a2a-js/sdk (A2A protocol)
+                </pre>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+        </div>
+    </div>
+</body>
+</html>

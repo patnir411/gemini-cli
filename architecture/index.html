@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Architecture Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4285f4;
+            --secondary: #34a853;
+            --accent: #fbbc04;
+            --danger: #ea4335;
+            --dark: #202124;
+            --light: #f8f9fa;
+            --border: #dadce0;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px var(--shadow);
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #5f6368;
+            font-size: 1.2em;
+        }
+
+        .nav {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px var(--shadow);
+        }
+
+        .nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: var(--primary);
+            padding: 10px 20px;
+            border-radius: 6px;
+            background: var(--light);
+            transition: all 0.3s;
+            display: inline-block;
+        }
+
+        .nav a:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px var(--shadow);
+        }
+
+        h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        h3 {
+            color: var(--secondary);
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: scale(1.05);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .component-card {
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s;
+            background: var(--light);
+        }
+
+        .component-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px var(--shadow);
+            transform: translateY(-3px);
+        }
+
+        .component-card h4 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .component-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .component-card li {
+            padding: 5px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .component-card li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--secondary);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .badge-primary { background: var(--primary); color: white; }
+        .badge-secondary { background: var(--secondary); color: white; }
+        .badge-accent { background: var(--accent); color: var(--dark); }
+        .badge-danger { background: var(--danger); color: white; }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        footer {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+            color: #5f6368;
+            box-shadow: 0 4px 6px var(--shadow);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; }
+            .nav ul { flex-direction: column; }
+            .stats { grid-template-columns: 1fr; }
+            .component-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Gemini CLI Architecture Documentation</h1>
+            <p class="subtitle">Comprehensive Visual Guide to the Gemini CLI Agent Harness</p>
+            <p style="margin-top: 15px; color: #5f6368;">
+                An enterprise-grade, production-ready AI agent framework for Gemini models
+            </p>
+        </header>
+
+        <nav class="nav">
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="diagrams/architecture-diagram.html">Architecture Diagram</a></li>
+                <li><a href="docs/agent-harness.html">Agent Harness</a></li>
+                <li><a href="docs/data-flow.html">Data Flow</a></li>
+                <li><a href="docs/api-integration.html">API Integration</a></li>
+                <li><a href="diagrams/component-map.html">Component Map</a></li>
+                <li><a href="docs/tools-system.html">Tools System</a></li>
+                <li><a href="docs/configuration.html">Configuration</a></li>
+            </ul>
+        </nav>
+
+        <section id="overview" class="section">
+            <h2>📊 Project Overview</h2>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">NPM Packages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">30+</div>
+                    <div class="stat-label">Built-in Commands</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">15+</div>
+                    <div class="stat-label">Built-in Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100+</div>
+                    <div class="stat-label">Settings Options</div>
+                </div>
+            </div>
+
+            <h3>🎯 What is Gemini CLI?</h3>
+            <p>
+                Gemini CLI is a sophisticated terminal-based agent harness that provides a seamless interface
+                for interacting with Google's Gemini AI models. It functions as a comprehensive development
+                environment with built-in tools, extensibility, and enterprise features.
+            </p>
+
+            <h3>🏗️ Architecture Pattern</h3>
+            <p>
+                The project follows a <strong>modular monorepo architecture</strong> with clear separation of concerns:
+            </p>
+            <ul style="margin-left: 40px; margin-top: 10px;">
+                <li><strong>packages/cli</strong> - User interface layer (React/Ink)</li>
+                <li><strong>packages/core</strong> - Business logic and AI orchestration</li>
+                <li><strong>packages/a2a-server</strong> - Agent-to-Agent communication</li>
+                <li><strong>packages/vscode-ide-companion</strong> - IDE integration</li>
+                <li><strong>packages/test-utils</strong> - Shared testing infrastructure</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>🛠️ Technology Stack</h2>
+            <div class="tech-stack">
+                <span class="badge badge-primary">TypeScript 5.3+</span>
+                <span class="badge badge-primary">Node.js 20+</span>
+                <span class="badge badge-secondary">React (Ink)</span>
+                <span class="badge badge-secondary">Vitest</span>
+                <span class="badge badge-accent">esbuild</span>
+                <span class="badge badge-accent">ESM</span>
+                <span class="badge badge-primary">@google/genai</span>
+                <span class="badge badge-secondary">MCP SDK</span>
+                <span class="badge badge-accent">OpenTelemetry</span>
+                <span class="badge badge-danger">node-pty</span>
+                <span class="badge badge-primary">tree-sitter</span>
+                <span class="badge badge-secondary">Zod</span>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>🏛️ Core Components</h2>
+
+            <div class="component-grid">
+                <div class="component-card">
+                    <h4>🎨 UI Layer (packages/cli)</h4>
+                    <ul>
+                        <li>React/Ink terminal rendering</li>
+                        <li>30+ slash commands</li>
+                        <li>Interactive prompts & dialogs</li>
+                        <li>Streaming response display</li>
+                        <li>Vim mode support</li>
+                        <li>Theme system</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🧠 Core Engine (packages/core)</h4>
+                    <ul>
+                        <li>GeminiClient orchestration</li>
+                        <li>Multi-turn conversation management</li>
+                        <li>Tool registry & execution</li>
+                        <li>Policy enforcement</li>
+                        <li>Chat compression</li>
+                        <li>Context window management</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🔌 API Integration</h4>
+                    <ul>
+                        <li>Gemini API via @google/genai</li>
+                        <li>Vertex AI support</li>
+                        <li>Code Assist integration</li>
+                        <li>OAuth 2.0 flows</li>
+                        <li>Retry with exponential backoff</li>
+                        <li>Quota management</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🛠️ Tools System</h4>
+                    <ul>
+                        <li>15+ built-in tools</li>
+                        <li>MCP tool integration</li>
+                        <li>Tool confirmation flow</li>
+                        <li>Discovered project tools</li>
+                        <li>Extension tools</li>
+                        <li>Policy-based permissions</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>⚙️ Configuration</h4>
+                    <ul>
+                        <li>4-tier settings hierarchy</li>
+                        <li>100+ configuration options</li>
+                        <li>JSON schema validation</li>
+                        <li>Environment variable support</li>
+                        <li>Project-specific settings</li>
+                        <li>Secure credential storage</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🔐 Security</h4>
+                    <ul>
+                        <li>Folder trust system</li>
+                        <li>Policy engine (TOML)</li>
+                        <li>Sandbox execution</li>
+                        <li>Shell command validation</li>
+                        <li>Tool confirmation</li>
+                        <li>Keychain integration</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>📡 MCP Integration</h4>
+                    <ul>
+                        <li>Model Context Protocol support</li>
+                        <li>Multi-server management</li>
+                        <li>Stdio/HTTP/SSE transports</li>
+                        <li>OAuth for MCP servers</li>
+                        <li>Dynamic tool discovery</li>
+                        <li>Prompt templates</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🔍 Observability</h4>
+                    <ul>
+                        <li>OpenTelemetry integration</li>
+                        <li>Google Cloud Logging</li>
+                        <li>Trace & metrics export</li>
+                        <li>Session recording</li>
+                        <li>Error reporting</li>
+                        <li>Performance profiling</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🎯 Agent System</h4>
+                    <ul>
+                        <li>Multi-step agent workflows</li>
+                        <li>Codebase investigator</li>
+                        <li>Subagent composition</li>
+                        <li>Schema validation</li>
+                        <li>Loop detection</li>
+                        <li>Next speaker checks</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>💻 IDE Integration</h4>
+                    <ul>
+                        <li>VS Code extension</li>
+                        <li>MCP-based communication</li>
+                        <li>Diff editor integration</li>
+                        <li>Context tracking</li>
+                        <li>Active file detection</li>
+                        <li>Cursor position sync</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>📦 Extension System</h4>
+                    <ul>
+                        <li>Extension loading/unloading</li>
+                        <li>MCP server providers</li>
+                        <li>Custom commands</li>
+                        <li>Context files</li>
+                        <li>Tool filtering</li>
+                        <li>Settings integration</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🗄️ State Management</h4>
+                    <ul>
+                        <li>Conversation history</li>
+                        <li>Session persistence</li>
+                        <li>Chat recording service</li>
+                        <li>Settings cascade</li>
+                        <li>Workspace context</li>
+                        <li>Tool call tracking</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>🔄 Agent Harness Flow</h2>
+            <p>The Gemini CLI implements a sophisticated multi-layer agent harness:</p>
+            <pre>
+┌─────────────────────────────────────────────────────────────┐
+│                    USER INTERFACE LAYER                      │
+│  (React/Ink - Terminal UI Components)                       │
+└─────────────────────────────────────┬───────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────┐
+│                   GEMINI CLIENT LAYER                        │
+│  • Model routing & fallback                                 │
+│  • Session management (max 100 turns)                       │
+│  • Loop detection                                            │
+│  • Chat compression                                          │
+│  • Context window overflow prevention                        │
+└─────────────────────────────────────┬───────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    GEMINI CHAT LAYER                         │
+│  • History management (curated vs comprehensive)            │
+│  • Content validation & retry logic                         │
+│  • Tool declaration management                              │
+│  • Chat recording service                                   │
+│  • Token usage tracking                                      │
+└─────────────────────────────────────┬───────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────┐
+│                      TURN LAYER                              │
+│  • Stream event processing                                  │
+│  • Tool call extraction                                      │
+│  • Citation handling                                         │
+│  • Thought processing (thinking mode)                       │
+│  • Error handling & retry                                    │
+└─────────────────────────────────────┬───────────────────────┘
+                                      ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  TOOL EXECUTION LAYER                        │
+│  • Sequential tool execution                                 │
+│  • User confirmation flow                                    │
+│  • Output truncation & streaming                            │
+│  • Policy enforcement                                        │
+│  • Error recovery                                            │
+└─────────────────────────────────────────────────────────────┘
+            </pre>
+            <p style="margin-top: 20px;">
+                <a href="docs/agent-harness.html" class="badge badge-primary" style="padding: 10px 20px; font-size: 1em; text-decoration: none;">
+                    View Detailed Agent Harness Documentation →
+                </a>
+            </p>
+        </section>
+
+        <section class="section">
+            <h2>📁 Project Structure</h2>
+            <pre>
+gemini-cli/
+├── packages/
+│   ├── cli/                    # Terminal UI (React/Ink)
+│   │   ├── src/ui/             # UI components
+│   │   ├── src/commands/       # Slash command implementations
+│   │   ├── src/config/         # CLI configuration
+│   │   └── src/services/       # UI services
+│   │
+│   ├── core/                   # Business logic & AI engine
+│   │   ├── src/core/           # Gemini client, chat, turns
+│   │   ├── src/tools/          # Tool registry & built-in tools
+│   │   ├── src/agents/         # Agent system
+│   │   ├── src/config/         # Core configuration
+│   │   ├── src/services/       # Backend services
+│   │   ├── src/mcp/            # MCP integration
+│   │   ├── src/policy/         # Policy engine
+│   │   ├── src/telemetry/      # Observability
+│   │   └── src/utils/          # Utilities
+│   │
+│   ├── a2a-server/             # Agent-to-Agent server
+│   ├── vscode-ide-companion/   # VS Code extension
+│   └── test-utils/             # Shared testing utilities
+│
+├── docs/                       # Documentation
+├── integration-tests/          # End-to-end tests
+├── scripts/                    # Build automation
+├── schemas/                    # JSON schemas
+├── architecture/               # Architecture docs (this directory)
+└── .gemini/                    # Project configuration
+            </pre>
+        </section>
+
+        <section class="section">
+            <h2>🔑 Key Features</h2>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h4>🚀 Performance</h4>
+                    <ul>
+                        <li>Streaming responses</li>
+                        <li>LRU caching</li>
+                        <li>Parallel file processing</li>
+                        <li>Context compression</li>
+                        <li>Efficient token management</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🔒 Security</h4>
+                    <ul>
+                        <li>Folder trust system</li>
+                        <li>TOML policy engine</li>
+                        <li>Sandbox execution (Docker/Podman)</li>
+                        <li>Shell command validation</li>
+                        <li>Secure credential storage</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🔌 Extensibility</h4>
+                    <ul>
+                        <li>MCP protocol support</li>
+                        <li>Custom commands (TOML)</li>
+                        <li>Extension system</li>
+                        <li>IDE integration</li>
+                        <li>Tool plugins</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>🧪 Testing</h4>
+                    <ul>
+                        <li>Vitest unit tests</li>
+                        <li>Integration test suite</li>
+                        <li>Mock service workers</li>
+                        <li>Coverage reporting</li>
+                        <li>CI/CD automation</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>📖 Documentation Index</h2>
+            <div class="component-grid">
+                <div class="component-card">
+                    <h4>📊 Diagrams</h4>
+                    <ul>
+                        <li><a href="diagrams/architecture-diagram.html">Full Architecture Diagram</a></li>
+                        <li><a href="diagrams/component-map.html">Component Relationship Map</a></li>
+                        <li><a href="diagrams/data-flow.html">Data Flow Visualization</a></li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <h4>📚 Technical Docs</h4>
+                    <ul>
+                        <li><a href="docs/agent-harness.html">Agent Harness Deep Dive</a></li>
+                        <li><a href="docs/api-integration.html">API Integration Guide</a></li>
+                        <li><a href="docs/tools-system.html">Tools System Architecture</a></li>
+                        <li><a href="docs/configuration.html">Configuration Management</a></li>
+                        <li><a href="docs/data-models.html">Data Models & State</a></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 Google - Gemini CLI Architecture Documentation</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                Generated from comprehensive codebase analysis
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

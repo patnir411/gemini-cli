@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - API Integration Guide</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .back-link { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; }
+        h1 { color: #4285f4; margin-bottom: 20px; }
+        h2 { color: #4285f4; margin-top: 40px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
+        h3 { color: #34a853; margin-top: 25px; margin-bottom: 15px; }
+        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.9em; color: #d32f2f; }
+        pre { background: #f5f5f5; padding: 20px; border-radius: 8px; overflow-x: auto; margin: 20px 0; border-left: 4px solid #4285f4; }
+        pre code { background: none; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; }
+        th { background: #f5f5f5; color: #4285f4; font-weight: 600; }
+        .info-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        ul, ol { margin: 15px 0 15px 40px; }
+        li { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <h1>🔌 API Integration Guide</h1>
+        <p style="font-size: 1.1em; color: #666; margin-bottom: 30px;">
+            Comprehensive guide to Gemini CLI's integration with external APIs and services
+        </p>
+
+        <h2>🤖 Gemini API Integration</h2>
+
+        <h3>SDK & Client</h3>
+        <p>The CLI uses Google's official <code>@google/genai</code> SDK for all Gemini API interactions.</p>
+
+        <div class="info-box">
+            <strong>File:</strong> <code>packages/core/src/core/contentGenerator.ts</code><br>
+            <strong>Key Classes:</strong>
+            <ul>
+                <li><code>ContentGenerator</code> - Abstract interface</li>
+                <li><code>GoogleGenAI</code> - SDK client instance</li>
+                <li><code>LoggingContentGenerator</code> - Telemetry wrapper</li>
+                <li><code>RecordingContentGenerator</code> - Debug wrapper</li>
+            </ul>
+        </div>
+
+        <h3>Authentication Methods</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>Environment</th>
+                <th>Credentials</th>
+            </tr>
+            <tr>
+                <td><strong>USE_GEMINI</strong></td>
+                <td>AI Studio</td>
+                <td><code>GEMINI_API_KEY</code> env var or keychain</td>
+            </tr>
+            <tr>
+                <td><strong>LOGIN_WITH_GOOGLE</strong></td>
+                <td>Code Assist</td>
+                <td>OAuth 2.0 (device code or auth code flow)</td>
+            </tr>
+            <tr>
+                <td><strong>USE_VERTEX_AI</strong></td>
+                <td>Google Cloud</td>
+                <td>ADC + <code>GOOGLE_CLOUD_PROJECT</code> + <code>GOOGLE_CLOUD_LOCATION</code></td>
+            </tr>
+            <tr>
+                <td><strong>CLOUD_SHELL</strong></td>
+                <td>Cloud Shell</td>
+                <td>Automatic (detects Cloud Shell environment)</td>
+            </tr>
+        </table>
+
+        <h3>API Request Flow</h3>
+        <pre><code>// 1. Create content generator
+const generator = await createContentGenerator(authType, credentials)
+
+// 2. Wrap with logging
+const loggingGenerator = new LoggingContentGenerator(generator)
+
+// 3. Send request
+const stream = loggingGenerator.generateContentStream({
+  model: "gemini-2.5-pro",
+  contents: history,
+  tools: toolDeclarations,
+  generationConfig: { temperature: 1, topP: 0.95, topK: 64 },
+  thinkingConfig: { includeThoughts: true, thinkingBudget: 8192 }
+})
+
+// 4. Process stream
+for await (const chunk of stream) {
+  // Handle chunk
+}</code></pre>
+
+        <h3>Retry Logic</h3>
+        <p>File: <code>packages/core/src/utils/retry.ts</code></p>
+
+        <pre><code>retryWithBackoff(
+  operation,
+  {
+    maxAttempts: 3,
+    initialDelayMs: 5000,
+    maxDelayMs: 30000,
+    exponentialBackoff: true,
+    jitter: 0.3,  // ±30%
+    shouldRetry: (error) => {
+      // Retry on 429, 5xx, fetch errors
+      return error.status === 429 || error.status >= 500
+    }
+  }
+)</code></pre>
+
+        <div class="warning-box">
+            <strong>⚠️ Quota Error Handling</strong><br><br>
+            Two types of quota errors:
+            <ul>
+                <li><strong>RetryableQuotaError:</strong> Temporary limits (per-minute) → Retry with delay</li>
+                <li><strong>TerminalQuotaError:</strong> Hard limits (daily) → Trigger fallback to Flash model</li>
+            </ul>
+            Detection: <code>packages/core/src/utils/googleQuotaErrors.ts</code>
+        </div>
+
+        <h3>Model Configuration</h3>
+        <table>
+            <tr>
+                <th>Parameter</th>
+                <th>Default</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>temperature</code></td>
+                <td>1</td>
+                <td>Randomness (0-2)</td>
+            </tr>
+            <tr>
+                <td><code>topP</code></td>
+                <td>0.95</td>
+                <td>Nucleus sampling</td>
+            </tr>
+            <tr>
+                <td><code>topK</code></td>
+                <td>64</td>
+                <td>Top-K sampling</td>
+            </tr>
+            <tr>
+                <td><code>thinkingBudget</code></td>
+                <td>8192</td>
+                <td>Max thinking tokens (Gemini 2.5+)</td>
+            </tr>
+        </table>
+
+        <h2>☁️ Code Assist Integration</h2>
+
+        <h3>OAuth 2.0 Flow</h3>
+        <p>File: <code>packages/core/src/code_assist/oauth2.ts</code></p>
+
+        <pre><code>// 1. Device Code Flow
+const { device_code, user_code, verification_url } =
+  await requestDeviceCode()
+
+// 2. User approves in browser
+console.log(`Visit: ${verification_url}`)
+console.log(`Code: ${user_code}`)
+
+// 3. Poll for token
+const { access_token, refresh_token } =
+  await pollForToken(device_code)
+
+// 4. Store credentials
+await storeCredentials({ access_token, refresh_token })</code></pre>
+
+        <h3>API Endpoints</h3>
+        <table>
+            <tr>
+                <th>Endpoint</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td><code>/v1internal/onboarding</code></td>
+                <td>User onboarding & tier detection</td>
+            </tr>
+            <tr>
+                <td><code>/v1internal/experiments</code></td>
+                <td>Feature flags & experiments</td>
+            </tr>
+            <tr>
+                <td><code>/v1internal/models/{model}:generateContentStream</code></td>
+                <td>Streaming content generation</td>
+            </tr>
+        </table>
+
+        <h3>Tier Management</h3>
+        <p>Code Assist supports multiple tiers:</p>
+        <ul>
+            <li><strong>STANDARD:</strong> Free tier with rate limits</li>
+            <li><strong>PRO:</strong> Paid tier with higher quotas</li>
+        </ul>
+        <p>Tier detection: <code>packages/core/src/code_assist/server.ts</code></p>
+
+        <h2>🌐 Web Services</h2>
+
+        <h3>Web Search (Google Search Grounding)</h3>
+        <p>File: <code>packages/core/src/tools/web-search.ts</code></p>
+
+        <pre><code>// Uses Gemini's grounding feature
+const response = await genai.generateContent({
+  contents: [{ parts: [{ text: query }] }],
+  generationConfig: {
+    searchGrounding: true  // Enables Google Search
+  }
+})
+
+// Extract citations
+for (const chunk of response.groundingChunks) {
+  if (chunk.web) {
+    citations.push({
+      uri: chunk.web.uri,
+      title: chunk.web.title
+    })
+  }
+}</code></pre>
+
+        <h3>Web Fetch</h3>
+        <p>File: <code>packages/core/src/tools/web-fetch.ts</code></p>
+
+        <pre><code>// Fetch up to 20 URLs
+const results = await Promise.all(
+  urls.map(async (url) => {
+    // 1. Convert GitHub blob URLs to raw
+    url = convertGitHubBlobToRaw(url)
+
+    // 2. Fetch with undici
+    const response = await fetch(url)
+
+    // 3. Convert HTML to text
+    const html = await response.text()
+    const text = htmlToText(html, {
+      wordwrap: false,
+      ignoreHref: true,
+      ignoreImage: true
+    })
+
+    return { url, content: text }
+  })
+)</code></pre>
+
+        <h2>📊 Telemetry Integration</h2>
+
+        <h3>OpenTelemetry Setup</h3>
+        <p>File: <code>packages/core/src/telemetry/sdk.ts</code></p>
+
+        <pre><code>// Initialize SDK
+const sdk = new NodeSDK({
+  // Trace exporter
+  traceExporter: new OTLPTraceExporter({
+    url: process.env.OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
+    headers: { 'x-api-key': API_KEY }
+  }),
+
+  // Metrics exporter
+  metricReader: new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter()
+  }),
+
+  // Resource attributes
+  resource: new Resource({
+    'service.name': 'gemini-cli',
+    'service.version': VERSION
+  })
+})
+
+sdk.start()</code></pre>
+
+        <h3>Supported Exporters</h3>
+        <table>
+            <tr>
+                <th>Exporter</th>
+                <th>Target</th>
+                <th>Configuration</th>
+            </tr>
+            <tr>
+                <td>OTLP (gRPC)</td>
+                <td>Collector</td>
+                <td><code>OTLP_ENDPOINT</code> + <code>OTLP_PROTOCOL=grpc</code></td>
+            </tr>
+            <tr>
+                <td>OTLP (HTTP)</td>
+                <td>Collector</td>
+                <td><code>OTLP_ENDPOINT</code> + <code>OTLP_PROTOCOL=http</code></td>
+            </tr>
+            <tr>
+                <td>Google Cloud</td>
+                <td>Cloud Trace/Logging</td>
+                <td><code>GOOGLE_CLOUD_PROJECT</code></td>
+            </tr>
+            <tr>
+                <td>File</td>
+                <td>Local JSON</td>
+                <td><code>GEMINI_TELEMETRY_OUTFILE</code></td>
+            </tr>
+            <tr>
+                <td>Console</td>
+                <td>stdout</td>
+                <td>Default in dev mode</td>
+            </tr>
+        </table>
+
+        <h2>🔌 MCP (Model Context Protocol)</h2>
+
+        <h3>Server Connection</h3>
+        <p>File: <code>packages/core/src/tools/mcp-client.ts</code></p>
+
+        <pre><code>// Stdio transport (local process)
+const transport = new StdioClientTransport({
+  command: "node",
+  args: ["server.js"],
+  env: { API_KEY: "..." }
+})
+
+// HTTP transport (remote server)
+const transport = new StreamableHTTPClientTransport({
+  url: "https://mcp.example.com",
+  headers: { "Authorization": `Bearer ${token}` }
+})
+
+// Connect
+const client = new Client({
+  name: "gemini-cli",
+  version: VERSION
+})
+await client.connect(transport)
+
+// List tools
+const { tools } = await client.listTools()</code></pre>
+
+        <h3>OAuth for MCP</h3>
+        <p>File: <code>packages/core/src/mcp/oauth-provider.ts</code></p>
+
+        <pre><code>// 1. Discover OAuth endpoints (RFC 8414)
+const metadata = await discoverOAuthMetadata(resourceUrl)
+
+// 2. PKCE flow
+const codeVerifier = generateCodeVerifier()
+const codeChallenge = await sha256(codeVerifier)
+
+const authUrl = buildAuthUrl({
+  authorizationEndpoint: metadata.authorization_endpoint,
+  clientId: CLIENT_ID,
+  redirectUri: `http://localhost:${port}/callback`,
+  codeChallenge,
+  state: randomState()
+})
+
+// 3. Local callback server
+const server = http.createServer((req, res) => {
+  const { code, state } = parseCallbackUrl(req.url)
+  // Exchange code for token
+})
+
+// 4. Token exchange
+const tokens = await exchangeCodeForToken({
+  code,
+  codeVerifier,
+  tokenEndpoint: metadata.token_endpoint
+})
+
+// 5. Store tokens
+await storeTokens(serverUrl, clientId, tokens)</code></pre>
+
+        <h2>💻 IDE Integration</h2>
+
+        <h3>VS Code MCP Server</h3>
+        <p>Files:</p>
+        <ul>
+            <li><code>packages/vscode-ide-companion/src/ide-server.ts</code></li>
+            <li><code>packages/core/src/ide/ide-client.ts</code></li>
+        </ul>
+
+        <pre><code>// Server (VS Code Extension)
+const server = new Server({
+  name: "gemini-vscode-ide",
+  version: "1.0.0"
+}, {
+  capabilities: {
+    tools: {
+      "ide/context": { /* schema */ },
+      "ide/diff": { /* schema */ }
+    }
+  }
+})
+
+// Serve over HTTP/SSE
+app.get('/mcp', (req, res) => {
+  const transport = new SSEServerTransport('/mcp', res)
+  server.connect(transport)
+})
+
+// Client (CLI)
+const client = new Client(...)
+await client.connect(new StreamableHTTPClientTransport({
+  url: `http://127.0.0.1:${port}/mcp`
+}))
+
+// Call tool
+const result = await client.callTool("ide/context", {})</code></pre>
+
+        <h3>Context Synchronization</h3>
+        <pre><code>// Get IDE context
+const context = await ideClient.getContext()
+/*
+{
+  activeFile: {
+    path: "/workspace/src/index.ts",
+    cursor: { line: 42, column: 10 },
+    selectedText: "const foo = ..."
+  },
+  otherOpenFiles: ["src/app.ts", "src/utils.ts"]
+}
+*/
+
+// Send diff to IDE
+await ideClient.showDiff({
+  filePath: "/workspace/src/index.ts",
+  oldContent: "...",
+  newContent: "..."
+})
+
+// Wait for user decision
+const decision = await waitForDiffDecision()
+// Result: "accepted" | "rejected"</code></pre>
+
+        <h2>🔐 Error Handling</h2>
+
+        <h3>Error Classification</h3>
+        <p>File: <code>packages/core/src/utils/errorParsing.ts</code></p>
+
+        <table>
+            <tr>
+                <th>Status Code</th>
+                <th>Classification</th>
+                <th>Action</th>
+            </tr>
+            <tr>
+                <td>400</td>
+                <td>Bad Request</td>
+                <td>Show error, don't retry</td>
+            </tr>
+            <tr>
+                <td>401</td>
+                <td>Unauthorized</td>
+                <td>Refresh token, retry once</td>
+            </tr>
+            <tr>
+                <td>403</td>
+                <td>Forbidden</td>
+                <td>Show error, check permissions</td>
+            </tr>
+            <tr>
+                <td>429</td>
+                <td>Rate Limit</td>
+                <td>Exponential backoff OR fallback to Flash</td>
+            </tr>
+            <tr>
+                <td>5xx</td>
+                <td>Server Error</td>
+                <td>Retry with backoff</td>
+            </tr>
+            <tr>
+                <td>Network</td>
+                <td>Fetch Failed</td>
+                <td>Retry with backoff (if enabled)</td>
+            </tr>
+        </table>
+
+        <h3>Google API Error Parsing</h3>
+        <p>File: <code>packages/core/src/utils/googleErrors.ts</code></p>
+
+        <pre><code>// Extract structured error details
+const details = extractGoogleErrorDetails(error)
+/*
+{
+  reason: "RATE_LIMIT_EXCEEDED",
+  domain: "usageLimits",
+  metadata: {
+    service: "generativelanguage.googleapis.com",
+    quota_metric: "GenerateContentRequestsPerMinutePerProjectPerModel"
+  },
+  retryDelay: "60s"
+}
+*/</code></pre>
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+        </div>
+    </div>
+</body>
+</html>

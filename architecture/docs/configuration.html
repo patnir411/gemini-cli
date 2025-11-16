@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Configuration Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .back-link { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; }
+        h1 { color: #4285f4; margin-bottom: 20px; }
+        h2 { color: #4285f4; margin-top: 40px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
+        h3 { color: #34a853; margin-top: 25px; margin-bottom: 15px; }
+        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.9em; color: #d32f2f; }
+        pre { background: #f5f5f5; padding: 20px; border-radius: 8px; overflow-x: auto; margin: 20px 0; border-left: 4px solid #4285f4; }
+        pre code { background: none; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; font-size: 0.9em; }
+        th { background: #f5f5f5; color: #4285f4; font-weight: 600; }
+        .info-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        ul, ol { margin: 15px 0 15px 40px; }
+        li { margin: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <h1>⚙️ Configuration Management</h1>
+        <p style="font-size: 1.1em; color: #666; margin-bottom: 30px;">
+            Complete guide to Gemini CLI's multi-layer configuration system
+        </p>
+
+        <h2>📁 Configuration File Hierarchy</h2>
+
+        <div class="info-box">
+            <strong>4-Tier Configuration System (lowest to highest precedence):</strong>
+            <ol>
+                <li><strong>System Defaults:</strong> <code>/etc/gemini-cli/system-defaults.json</code></li>
+                <li><strong>User Settings:</strong> <code>~/.gemini/settings.json</code></li>
+                <li><strong>Workspace Settings:</strong> <code>&lt;project&gt;/.gemini/settings.json</code></li>
+                <li><strong>System Overrides:</strong> <code>/etc/gemini-cli/settings.json</code></li>
+            </ol>
+            Plus: Environment variables and command-line arguments override all file-based settings.
+        </div>
+
+        <h3>Settings File Locations</h3>
+        <table>
+            <tr>
+                <th>Platform</th>
+                <th>System Defaults</th>
+                <th>System Settings</th>
+            </tr>
+            <tr>
+                <td><strong>Linux</strong></td>
+                <td><code>/etc/gemini-cli/system-defaults.json</code></td>
+                <td><code>/etc/gemini-cli/settings.json</code></td>
+            </tr>
+            <tr>
+                <td><strong>macOS</strong></td>
+                <td><code>/Library/Application Support/GeminiCli/system-defaults.json</code></td>
+                <td><code>/Library/Application Support/GeminiCli/settings.json</code></td>
+            </tr>
+            <tr>
+                <td><strong>Windows</strong></td>
+                <td><code>C:\ProgramData\gemini-cli\system-defaults.json</code></td>
+                <td><code>C:\ProgramData\gemini-cli\settings.json</code></td>
+            </tr>
+        </table>
+
+        <h2>🔑 Major Setting Categories</h2>
+
+        <h3>General Settings (<code>general</code>)</h3>
+        <table>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>preferredEditor</code></td><td>-</td><td>External editor command</td></tr>
+            <tr><td><code>vimMode</code></td><td><code>false</code></td><td>Enable Vim keybindings</td></tr>
+            <tr><td><code>disableAutoUpdate</code></td><td><code>false</code></td><td>Disable automatic updates</td></tr>
+            <tr><td><code>checkpointing.enabled</code></td><td><code>true</code></td><td>Session checkpointing</td></tr>
+            <tr><td><code>enablePromptCompletion</code></td><td><code>false</code></td><td>AI-powered prompt completion</td></tr>
+            <tr><td><code>retryFetchErrors</code></td><td><code>false</code></td><td>Retry on network errors</td></tr>
+            <tr><td><code>sessionRetention.enabled</code></td><td><code>false</code></td><td>Automatic session cleanup</td></tr>
+            <tr><td><code>sessionRetention.maxAge</code></td><td><code>"30d"</code></td><td>Max session age</td></tr>
+        </table>
+
+        <h3>UI Settings (<code>ui</code>)</h3>
+        <table>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>theme</code></td><td><code>"default"</code></td><td>Color theme name</td></tr>
+            <tr><td><code>customThemes</code></td><td><code>{}</code></td><td>User-defined themes</td></tr>
+            <tr><td><code>hideWindowTitle</code></td><td><code>false</code></td><td>Hide window title</td></tr>
+            <tr><td><code>hideBanner</code></td><td><code>false</code></td><td>Hide startup banner</td></tr>
+            <tr><td><code>hideTips</code></td><td><code>false</code></td><td>Hide usage tips</td></tr>
+            <tr><td><code>hideFooter</code></td><td><code>false</code></td><td>Hide status footer</td></tr>
+            <tr><td><code>accessibility.screenReader</code></td><td><code>false</code></td><td>Screen reader optimizations</td></tr>
+            <tr><td><code>accessibility.disableLoadingPhrases</code></td><td><code>false</code></td><td>Simple loading indicator</td></tr>
+        </table>
+
+        <h3>Model Settings (<code>model</code>)</h3>
+        <table>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>name</code></td><td><code>"gemini-2.5-pro"</code></td><td>Default model</td></tr>
+            <tr><td><code>maxSessionTurns</code></td><td><code>-1</code></td><td>Max turns (-1 = unlimited)</td></tr>
+            <tr><td><code>summarizeToolOutput</code></td><td>-</td><td>Tool output summarization config</td></tr>
+            <tr><td><code>compressionThreshold</code></td><td><code>0.2</code></td><td>Context compression trigger (20%)</td></tr>
+            <tr><td><code>skipNextSpeakerCheck</code></td><td><code>false</code></td><td>Skip continuation validation</td></tr>
+        </table>
+
+        <h3>Tools Settings (<code>tools</code>)</h3>
+        <table>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>sandbox</code></td><td><code>"none"</code></td><td>Sandbox mode (none/docker/podman)</td></tr>
+            <tr><td><code>shell</code></td><td><code>-</code></td><td>Shell-specific settings</td></tr>
+            <tr><td><code>autoAccept</code></td><td><code>false</code></td><td>Auto-approve safe operations</td></tr>
+            <tr><td><code>core.allowed</code></td><td><code>[]</code></td><td>Allowlist for core tools</td></tr>
+            <tr><td><code>allowed</code></td><td><code>[]</code></td><td>Global tool allowlist</td></tr>
+            <tr><td><code>exclude</code></td><td><code>[]</code></td><td>Excluded tools</td></tr>
+            <tr><td><code>useRipgrep</code></td><td><code>true</code></td><td>Use ripgrep for Grep tool</td></tr>
+            <tr><td><code>enableMessageBusIntegration</code></td><td><code>false</code></td><td>Policy-based confirmations</td></tr>
+            <tr><td><code>enableHooks</code></td><td><code>false</code></td><td>Enable hooks system</td></tr>
+        </table>
+
+        <h3>Security Settings (<code>security</code>)</h3>
+        <table>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>disableYoloMode</code></td><td><code>false</code></td><td>Disable YOLO mode</td></tr>
+            <tr><td><code>blockGitExtensions</code></td><td><code>false</code></td><td>Block Git-based extensions</td></tr>
+            <tr><td><code>folderTrust.enabled</code></td><td><code>true</code></td><td>Enable folder trust</td></tr>
+            <tr><td><code>auth.selectedType</code></td><td><code>-</code></td><td>Selected auth method</td></tr>
+            <tr><td><code>auth.enforcedType</code></td><td><code>-</code></td><td>Enforced auth (system-level)</td></tr>
+            <tr><td><code>auth.useExternal</code></td><td><code>false</code></td><td>Use external auth flow</td></tr>
+        </table>
+
+        <h3>Context Settings (<code>context</code>)</h3>
+        <table>
+            <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+            <tr><td><code>fileName</code></td><td><code>["GEMINI.md"]</code></td><td>Context file name(s)</td></tr>
+            <tr><td><code>importFormat</code></td><td><code>"tree"</code></td><td>Memory import format</td></tr>
+            <tr><td><code>discoveryMaxDirs</code></td><td><code>200</code></td><td>Max directories to search</td></tr>
+            <tr><td><code>includeDirectories</code></td><td><code>[]</code></td><td>Additional workspace directories</td></tr>
+            <tr><td><code>fileFiltering.respectGitIgnore</code></td><td><code>true</code></td><td>Respect .gitignore</td></tr>
+            <tr><td><code>fileFiltering.respectGeminiIgnore</code></td><td><code>true</code></td><td>Respect .geminiignore</td></tr>
+            <tr><td><code>fileFiltering.enableRecursiveFileSearch</code></td><td><code>true</code></td><td>Recursive file search</td></tr>
+            <tr><td><code>fileFiltering.disableFuzzySearch</code></td><td><code>false</code></td><td>Disable fuzzy matching</td></tr>
+        </table>
+
+        <h2>🔄 Configuration Loading Process</h2>
+
+        <p>File: <code>packages/cli/src/config/settings.ts</code></p>
+
+        <pre><code>async function loadSettings(workspaceDir?: string) {
+  // 1. Load system defaults
+  const systemDefaults = await loadFile(systemDefaultsPath)
+
+  // 2. Load user settings
+  const userSettings = await loadFile(userSettingsPath)
+
+  // 3. Load workspace settings (if trusted)
+  const workspaceSettings = isWorkspaceTrusted(workspaceDir)
+    ? await loadFile(workspaceSettingsPath)
+    : {}
+
+  // 4. Load system overrides
+  const systemSettings = await loadFile(systemSettingsPath)
+
+  // 5. Deep merge all layers
+  const merged = customDeepMerge(
+    systemDefaults,
+    userSettings,
+    workspaceSettings,
+    systemSettings
+  )
+
+  // 6. Resolve environment variables
+  return resolveEnvVarsInObject(merged)
+}</code></pre>
+
+        <h3>Merge Strategies</h3>
+        <table>
+            <tr><th>Strategy</th><th>Behavior</th><th>Use Case</th></tr>
+            <tr><td><code>REPLACE</code></td><td>New value overwrites old</td><td>Default for most settings</td></tr>
+            <tr><td><code>CONCAT</code></td><td>Arrays concatenated</td><td>List accumulation</td></tr>
+            <tr><td><code>UNION</code></td><td>Arrays merged (unique values)</td><td>Allowlists</td></tr>
+            <tr><td><code>SHALLOW_MERGE</code></td><td>Object keys merged shallowly</td><td>Theme definitions</td></tr>
+        </table>
+
+        <h2>🔐 Credential Storage</h2>
+
+        <h3>API Keys</h3>
+        <p>File: <code>packages/core/src/core/apiKeyCredentialStorage.ts</code></p>
+
+        <pre><code>// Storage hierarchy (first found wins):
+// 1. Environment variable
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+
+// 2. Secure keychain
+const keychain = new HybridTokenStorage({
+  service: "gemini-cli-api-key",
+  account: "default-api-key"
+})
+const apiKey = await keychain.getToken()
+
+// 3. Settings file (deprecated, for migration)
+const apiKey = settings.apiKey</code></pre>
+
+        <h3>OAuth Tokens</h3>
+        <table>
+            <tr><th>Service</th><th>Storage Location</th><th>Format</th></tr>
+            <tr><td>Code Assist</td><td>Keychain + <code>~/.gemini/oauth_creds.json</code></td><td>Encrypted</td></tr>
+            <tr><td>Google Accounts</td><td><code>~/.gemini/google_accounts.json</code></td><td>JSON</td></tr>
+            <tr><td>MCP Servers</td><td><code>~/.gemini/mcp-oauth-tokens.json</code></td><td>JSON</td></tr>
+        </table>
+
+        <h2>🌍 Environment Variables</h2>
+
+        <h3>Authentication</h3>
+        <table>
+            <tr><th>Variable</th><th>Purpose</th></tr>
+            <tr><td><code>GEMINI_API_KEY</code></td><td>Gemini API key</td></tr>
+            <tr><td><code>GOOGLE_API_KEY</code></td><td>Google API key (Vertex Express)</td></tr>
+            <tr><td><code>GOOGLE_CLOUD_PROJECT</code></td><td>GCP project ID</td></tr>
+            <tr><td><code>GOOGLE_CLOUD_LOCATION</code></td><td>GCP region (e.g., us-central1)</td></tr>
+        </table>
+
+        <h3>Configuration Paths</h3>
+        <table>
+            <tr><th>Variable</th><th>Purpose</th></tr>
+            <tr><td><code>GEMINI_CLI_SYSTEM_SETTINGS_PATH</code></td><td>Override system settings path</td></tr>
+            <tr><td><code>GEMINI_CLI_SYSTEM_DEFAULTS_PATH</code></td><td>Override system defaults path</td></tr>
+            <tr><td><code>GEMINI_CONFIG_DIR</code></td><td>Gemini config directory</td></tr>
+            <tr><td><code>GEMINI_DIR</code></td><td>Gemini directory name (default: .gemini)</td></tr>
+        </table>
+
+        <h3>Operational</h3>
+        <table>
+            <tr><th>Variable</th><th>Purpose</th></tr>
+            <tr><td><code>GEMINI_MODEL</code></td><td>Override default model</td></tr>
+            <tr><td><code>GEMINI_SANDBOX</code></td><td>Enable sandbox mode</td></tr>
+            <tr><td><code>CLOUD_SHELL</code></td><td>Indicates Cloud Shell environment</td></tr>
+            <tr><td><code>NO_BROWSER</code></td><td>Suppress browser launch</td></tr>
+            <tr><td><code>DEBUG</code>, <code>DEBUG_MODE</code></td><td>Enable debug mode</td></tr>
+            <tr><td><code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code></td><td>Proxy configuration</td></tr>
+        </table>
+
+        <h3>Telemetry</h3>
+        <table>
+            <tr><th>Variable</th><th>Purpose</th></tr>
+            <tr><td><code>GEMINI_TELEMETRY_ENABLED</code></td><td>Enable/disable telemetry</td></tr>
+            <tr><td><code>GEMINI_TELEMETRY_TARGET</code></td><td>Target (local/gcp)</td></tr>
+            <tr><td><code>OTLP_ENDPOINT</code></td><td>OTLP collector endpoint</td></tr>
+            <tr><td><code>OTLP_PROTOCOL</code></td><td>Protocol (grpc/http)</td></tr>
+            <tr><td><code>GOOGLE_CLOUD_PROJECT</code></td><td>GCP project for telemetry</td></tr>
+        </table>
+
+        <h2>📂 Storage Locations</h2>
+
+        <h3>Global Directory (<code>~/.gemini/</code>)</h3>
+        <pre><code>~/.gemini/
+├── settings.json              # User settings
+├── google_accounts.json       # Google account storage
+├── oauth_creds.json          # OAuth credentials
+├── mcp-oauth-tokens.json     # MCP OAuth tokens
+├── installation_id           # Installation identifier
+├── memory.md                 # Global memory file
+├── commands/                 # User commands
+├── policies/                 # User policies
+└── tmp/                      # Temporary files
+    ├── &lt;project-hash&gt;/       # Per-project temp dir
+    │   ├── chats/            # Session recordings
+    │   ├── checkpoints/      # Session checkpoints
+    │   └── shell_history     # Shell command history
+    └── bin/                  # Downloaded binaries</code></pre>
+
+        <h3>Project Directory (<code>.gemini/</code>)</h3>
+        <pre><code>.gemini/
+├── settings.json             # Project settings
+├── commands/                 # Project commands
+├── extensions/               # Project extensions
+├── .env                      # Environment variables
+└── config.yaml              # Legacy config (deprecated)</code></pre>
+
+        <h2>🔄 Environment File Loading</h2>
+
+        <p>File: <code>packages/cli/src/config/settings.ts</code></p>
+
+        <pre><code>// Search order (first found wins):
+1. .gemini/.env (current directory)
+2. .env (current directory)
+3. Walk up directory tree to root
+4. ~/.gemini/.env (global fallback)
+5. ~/.env (global fallback)
+
+// Special handling:
+// - Variables in `advanced.excludedEnvVars` are skipped from project .env files
+// - Cloud Shell: Special `GOOGLE_CLOUD_PROJECT` handling
+// - Shell environment > .env files</code></pre>
+
+        <h2>⚙️ Model Configuration Aliases</h2>
+
+        <p>File: <code>packages/core/src/config/defaultModelConfigs.ts</code></p>
+
+        <pre><code>{
+  "modelConfigs": {
+    "aliases": {
+      "base": {
+        "temperature": 0,
+        "topP": 1
+      },
+      "chat-base": {
+        "extends": "base",
+        "temperature": 1,
+        "topP": 0.95,
+        "topK": 64
+      },
+      "gemini-2.5-pro": {
+        "extends": "chat-base"
+      },
+      "gemini-2.5-flash": {
+        "extends": "chat-base"
+      }
+    },
+    "overrides": [
+      {
+        "match": { "prompt": ".*code.*" },
+        "config": { "temperature": 0.5 }
+      }
+    ]
+  }
+}</code></pre>
+
+        <div class="info-box">
+            <strong>💡 Configuration Best Practices:</strong>
+            <ul>
+                <li>Use <strong>user settings</strong> for personal preferences</li>
+                <li>Use <strong>workspace settings</strong> for project-specific config</li>
+                <li>Use <strong>system settings</strong> for organization-wide policies</li>
+                <li>Use <strong>environment variables</strong> for secrets and CI/CD</li>
+                <li>Use <strong>.gemini/.env</strong> for project-specific environment variables</li>
+                <li>Never commit credentials to version control</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+        </div>
+    </div>
+</body>
+</html>

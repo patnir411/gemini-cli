@@ -4,6 +4,22 @@
 
 This directory contains detailed architectural documentation, interactive visualizations, and technical deep-dives into the Gemini CLI agent harness framework.
 
+## 🤖 AI Q&A Assistant
+
+**NEW!** Ask questions about the architecture using our AI-powered assistant:
+
+```bash
+# Interactive mode
+cd architecture/
+export GEMINI_API_KEY="your-api-key"
+./qa.sh
+
+# Single question
+./qa.sh "What is the agent harness?"
+```
+
+See [QA_ASSISTANT.md](./QA_ASSISTANT.md) for full documentation.
+
 ## 📚 Documentation Overview
 
 ### 🎯 Getting Started
@@ -22,7 +38,7 @@ This directory contains detailed architectural documentation, interactive visual
 - [**API Integration Guide**](./docs/api-integration.html) - Integration with Gemini API, Code Assist, web services, telemetry, and MCP
 - [**Tools System Architecture**](./docs/tools-system.html) - Tool registry, execution flow, policy engine, and safety features
 - [**Configuration Management**](./docs/configuration.html) - 4-tier configuration hierarchy, settings reference, and environment variables
-- [**Data Models & State**](./docs/data-models.html) - Data structures, state management, and persistence (if available)
+- [**Data Models & State**](./docs/data-models.html) - Data structures, state management, and persistence
 
 ## 🗂️ Directory Structure
 
@@ -30,6 +46,10 @@ This directory contains detailed architectural documentation, interactive visual
 architecture/
 ├── index.html                  # Main documentation hub
 ├── README.md                   # This file
+├── QA_ASSISTANT.md             # AI Q&A Assistant documentation
+│
+├── qa.sh                       # Q&A Assistant shell script
+├── qa-assistant.mjs            # Q&A Assistant Node.js app
 │
 ├── diagrams/                   # Interactive visualizations
 │   ├── architecture-diagram.html

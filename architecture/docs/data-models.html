@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI - Data Models & State Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; padding: 40px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .back-link { display: inline-block; margin-bottom: 20px; padding: 10px 20px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; transition: background 0.3s; }
+        .back-link:hover { background: #357ae8; }
+        h1 { color: #4285f4; margin-bottom: 20px; font-size: 2.5em; }
+        h2 { color: #4285f4; margin-top: 40px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
+        h3 { color: #34a853; margin-top: 25px; margin-bottom: 15px; }
+        h4 { color: #666; margin-top: 20px; margin-bottom: 10px; }
+        p { margin: 15px 0; color: #333; }
+        ul, ol { margin: 15px 0 15px 40px; }
+        li { margin: 8px 0; }
+        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; color: #d32f2f; }
+        pre { background: #f5f5f5; padding: 20px; border-radius: 8px; overflow-x: auto; margin: 20px 0; border-left: 4px solid #4285f4; }
+        pre code { background: none; padding: 0; color: #333; }
+        .info-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        .success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin: 20px 0; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #e0e0e0; padding: 12px; text-align: left; }
+        th { background: #f5f5f5; font-weight: 600; color: #4285f4; }
+        .model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin: 20px 0; }
+        .model-card { border: 2px solid #e0e0e0; border-radius: 8px; padding: 20px; background: #fafafa; }
+        .model-card h4 { color: #4285f4; margin-bottom: 15px; }
+        .model-card pre { margin: 10px 0; }
+        .file-ref { background: #f0f0f0; padding: 3px 8px; border-radius: 3px; font-family: monospace; font-size: 0.85em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← Back to Index</a>
+
+        <h1>📊 Data Models & State Management</h1>
+        <p class="subtitle" style="font-size: 1.2em; color: #666;">
+            Complete reference for data structures, types, and state management in Gemini CLI
+        </p>
+
+        <h2>🎯 Overview</h2>
+        <p>
+            Gemini CLI is built with TypeScript and uses a rich type system to ensure type safety
+            throughout the application. This document covers the core data models, state management
+            patterns, and persistence mechanisms.
+        </p>
+
+        <div class="info-box">
+            <strong>Key Principles:</strong>
+            <ul>
+                <li><strong>Type Safety:</strong> All data structures are strongly typed with TypeScript interfaces</li>
+                <li><strong>Immutability:</strong> State updates create new objects rather than mutating existing ones</li>
+                <li><strong>Stream-based:</strong> Heavy use of AsyncGenerators for streaming data</li>
+                <li><strong>Persistence:</strong> Critical state saved to disk for session replay</li>
+            </ul>
+        </div>
+
+        <h2>💬 Conversation Data Models</h2>
+
+        <h3>Content Types (Gemini API Format)</h3>
+        <p>File: <span class="file-ref">@google/genai types</span></p>
+
+        <div class="model-grid">
+            <div class="model-card">
+                <h4>User Content</h4>
+                <pre><code>interface UserContent {
+  role: "user",
+  parts: Array&lt;
+    | { text: string }
+    | { inlineData: {
+        mimeType: string,
+        data: string  // base64
+      } }
+    | { fileData: {
+        fileUri: string,
+        mimeType: string
+      } }
+    | { functionResponse: {
+        id: string,
+        name: string,
+        response: object
+      } }
+  &gt;
+}</code></pre>
+            </div>
+
+            <div class="model-card">
+                <h4>Model Content</h4>
+                <pre><code>interface ModelContent {
+  role: "model",
+  parts: Array&lt;
+    | { text: string }
+    | { thought: string }
+    | { functionCall: {
+        id: string,
+        name: string,
+        args: Record&lt;string, unknown&gt;
+      } }
+  &gt;
+}</code></pre>
+            </div>
+        </div>
+
+        <h3>Stream Events</h3>
+        <p>File: <span class="file-ref">packages/core/src/core/turn.ts</span></p>
+
+        <pre><code>export type ServerGeminiStreamEvent =
+  | ServerGeminiContentEvent          // Text chunks
+  | ServerGeminiThoughtEvent          // Thinking mode thoughts
+  | ServerGeminiToolCallRequestEvent  // Tool execution request
+  | ServerGeminiToolCallResponseEvent // Tool execution result
+  | ServerGeminiToolCallConfirmationEvent // User confirmation needed
+  | ServerGeminiCitationEvent         // Web grounding citations
+  | ServerGeminiErrorEvent            // Errors during generation
+  | ServerGeminiFinishedEvent         // Turn completion
+  | ServerGeminiRetryEvent            // Retry indicator
+  | ServerGeminiChatCompressedEvent   // Compression event
+  | ServerGeminiLoopDetectedEvent     // Loop detection trigger
+  | ServerGeminiMaxSessionTurnsEvent  // Session limit reached
+  | ServerGeminiUserCancelledEvent    // User cancelled
+  | ServerGeminiContextWindowWillOverflowEvent  // Context overflow warning
+  | ServerGeminiInvalidStreamEvent;   // Invalid response</code></pre>
+
+        <div class="success-box">
+            <strong>✅ Event-Driven Architecture:</strong><br>
+            All interactions between layers use these typed events, providing a clean separation
+            of concerns and enabling features like session recording, telemetry, and UI updates.
+        </div>
+
+        <h4>Content Event</h4>
+        <pre><code>type ServerGeminiContentEvent = {
+  type: 'content';
+  role: 'model' | 'user';
+  text: string;
+};</code></pre>
+
+        <h4>Thought Event (Gemini 2.5+)</h4>
+        <pre><code>type ServerGeminiThoughtEvent = {
+  type: 'thought';
+  subject: string;
+  description: string;
+};</code></pre>
+
+        <h4>Tool Call Request</h4>
+        <pre><code>interface ToolCallRequestInfo {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+}
+
+type ServerGeminiToolCallRequestEvent = {
+  type: 'tool_call_request';
+  calls: ToolCallRequestInfo[];
+};</code></pre>
+
+        <h4>Tool Call Response</h4>
+        <pre><code>interface ToolCallResponseInfo {
+  id: string;
+  name: string;
+  output: string;
+  error?: string;
+  metadata?: Record&lt;string, unknown&gt;;
+}
+
+type ServerGeminiToolCallResponseEvent = {
+  type: 'tool_call_response';
+  responses: ToolCallResponseInfo[];
+};</code></pre>
+
+        <h4>Finished Event</h4>
+        <pre><code>interface GeminiFinishedEventValue {
+  finishReason: 'STOP' | 'MAX_TOKENS' | 'SAFETY' | 'RECITATION' | 'OTHER';
+  citations?: string[];
+}
+
+type ServerGeminiFinishedEvent = {
+  type: 'finished';
+  value: GeminiFinishedEventValue;
+};</code></pre>
+
+        <h2>🛠️ Tool System Data Models</h2>
+
+        <h3>Tool Call Lifecycle</h3>
+        <p>File: <span class="file-ref">packages/core/src/core/coreToolScheduler.ts</span></p>
+
+        <pre><code>// Union type representing all possible tool call states
+export type ToolCall =
+  | ValidatingToolCall
+  | WaitingToolCall
+  | ExecutingToolCall
+  | SuccessfulToolCall
+  | ErroredToolCall
+  | CancelledToolCall;</code></pre>
+
+        <table>
+            <tr>
+                <th>State</th>
+                <th>Status</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><strong>ValidatingToolCall</strong></td>
+                <td><code>validating</code></td>
+                <td>Schema validation in progress</td>
+            </tr>
+            <tr>
+                <td><strong>WaitingToolCall</strong></td>
+                <td><code>waiting</code></td>
+                <td>Awaiting user confirmation</td>
+            </tr>
+            <tr>
+                <td><strong>ExecutingToolCall</strong></td>
+                <td><code>executing</code></td>
+                <td>Tool is running</td>
+            </tr>
+            <tr>
+                <td><strong>SuccessfulToolCall</strong></td>
+                <td><code>successful</code></td>
+                <td>Execution completed successfully</td>
+            </tr>
+            <tr>
+                <td><strong>ErroredToolCall</strong></td>
+                <td><code>errored</code></td>
+                <td>Execution failed</td>
+            </tr>
+            <tr>
+                <td><strong>CancelledToolCall</strong></td>
+                <td><code>cancelled</code></td>
+                <td>User rejected execution</td>
+            </tr>
+        </table>
+
+        <h4>Tool Call State Definitions</h4>
+
+        <pre><code>type ValidatingToolCall = {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+  status: 'validating';
+};
+
+type WaitingToolCall = {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+  status: 'waiting';
+  invocation: ToolInvocation;
+  confirmationMessage: string;
+};
+
+type ExecutingToolCall = {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+  status: 'executing';
+  invocation: ToolInvocation;
+  abortController: AbortController;
+};
+
+type SuccessfulToolCall = {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+  status: 'successful';
+  output: string;
+  metadata?: Record&lt;string, unknown&gt;;
+};
+
+type ErroredToolCall = {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+  status: 'errored';
+  error: string;
+};
+
+type CancelledToolCall = {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+  status: 'cancelled';
+  reason: string;
+};</code></pre>
+
+        <h3>Tool Definition</h3>
+        <p>File: <span class="file-ref">packages/core/src/tools/tool-base.ts</span></p>
+
+        <pre><code>interface ToolBuilder {
+  name: string;
+  description: string;
+
+  // JSON Schema for parameters
+  inputSchema: JSONSchema;
+
+  // Execute the tool
+  execute(
+    args: unknown,
+    context: ToolExecutionContext
+  ): Promise&lt;ToolResult&gt; | AsyncGenerator&lt;string, ToolResult&gt;;
+
+  // Convert to Gemini API format
+  toFunctionDeclaration(): FunctionDeclaration;
+}
+
+interface ToolExecutionContext {
+  signal?: AbortSignal;
+  workspace?: WorkspaceContext;
+  outputStream?: (chunk: string) =&gt; void;
+}
+
+interface ToolResult {
+  output: string;
+  metadata?: Record&lt;string, unknown&gt;;
+}</code></pre>
+
+        <h2>⚙️ Configuration Data Models</h2>
+
+        <h3>Settings Structure</h3>
+        <p>File: <span class="file-ref">packages/cli/src/config/settings.ts</span></p>
+
+        <div class="info-box">
+            Settings are loaded from multiple tiers and merged:
+            <ol>
+                <li>System defaults (<code>/etc/gemini-cli/system-defaults.json</code>)</li>
+                <li>User settings (<code>~/.gemini/settings.json</code>)</li>
+                <li>Workspace settings (<code>.gemini/settings.json</code>)</li>
+                <li>System overrides (<code>/etc/gemini-cli/settings.json</code>)</li>
+            </ol>
+        </div>
+
+        <pre><code>interface Settings {
+  general: GeneralSettings;
+  ui: UISettings;
+  model: ModelSettings;
+  tools: ToolsSettings;
+  security: SecuritySettings;
+  context: ContextSettings;
+  advanced: AdvancedSettings;
+  modelConfigs: ModelConfigsSettings;
+}
+
+interface GeneralSettings {
+  preferredEditor?: string;
+  vimMode?: boolean;
+  disableAutoUpdate?: boolean;
+  enablePromptCompletion?: boolean;
+  retryFetchErrors?: boolean;
+  checkpointing?: {
+    enabled?: boolean;
+  };
+  sessionRetention?: {
+    enabled?: boolean;
+    maxAge?: string;  // e.g., "30d"
+  };
+}
+
+interface ModelSettings {
+  name?: string;  // Model alias or name
+  maxSessionTurns?: number;
+  compressionThreshold?: number;  // 0-1
+  skipNextSpeakerCheck?: boolean;
+  summarizeToolOutput?: {
+    enabled?: boolean;
+    threshold?: number;
+  };
+}</code></pre>
+
+        <h2>📝 Session & History Data Models</h2>
+
+        <h3>Recorded Message</h3>
+        <p>File: <span class="file-ref">packages/core/src/services/chatRecordingService.ts</span></p>
+
+        <pre><code>interface RecordedMessage {
+  role: 'user' | 'model';
+  parts: ContentPart[];
+  timestamp: string;
+
+  // Metadata
+  tokenCount?: {
+    input?: number;
+    output?: number;
+    total?: number;
+  };
+
+  // Tool call enrichment
+  toolCalls?: EnrichedToolCall[];
+
+  // Thinking mode
+  thoughts?: {
+    subject: string;
+    description: string;
+  }[];
+
+  // Citations
+  citations?: string[];
+
+  // Finish reason
+  finishReason?: string;
+}
+
+interface EnrichedToolCall {
+  id: string;
+  name: string;
+  args: Record&lt;string, unknown&gt;;
+
+  // Tool metadata
+  toolDescription?: string;
+
+  // Execution details
+  status: 'successful' | 'errored' | 'cancelled';
+  output?: string;
+  error?: string;
+
+  // Timing
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+
+  // User interaction
+  userConfirmed?: boolean;
+  confirmationMode?: 'ask' | 'auto' | 'yolo';
+}</code></pre>
+
+        <h3>Session File Structure</h3>
+        <pre><code>// Saved to: ~/.gemini/tmp/&lt;project-hash&gt;/chats/&lt;session-id&gt;.json
+{
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "startTime": "2025-01-16T10:30:00Z",
+  "model": "gemini-2.5-pro",
+  "workspace": "/home/user/project",
+
+  "messages": [
+    {
+      "role": "user",
+      "parts": [{ "text": "Hello!" }],
+      "timestamp": "2025-01-16T10:30:00Z"
+    },
+    {
+      "role": "model",
+      "parts": [{ "text": "Hi! How can I help?" }],
+      "timestamp": "2025-01-16T10:30:01Z",
+      "tokenCount": { "input": 5, "output": 8, "total": 13 },
+      "finishReason": "STOP"
+    }
+  ],
+
+  "metadata": {
+    "totalTokens": 13,
+    "turnCount": 2,
+    "toolCallsCount": 0,
+    "compressionEvents": 0
+  }
+}</code></pre>
+
+        <h2>🔄 State Management Patterns</h2>
+
+        <h3>GeminiChat State</h3>
+        <p>File: <span class="file-ref">packages/core/src/core/geminiChat.ts</span></p>
+
+        <pre><code>class GeminiChat {
+  // Dual history tracking
+  private comprehensiveHistory: Content[] = [];  // All turns
+  private curatedHistory: Content[] = [];        // Valid turns only
+
+  // Current state
+  private currentModel?: string;
+  private totalTokens: number = 0;
+
+  // Services
+  private recordingService: ChatRecordingService;
+  private contentGenerator: ContentGenerator;
+
+  // Thought queue (Gemini 2.5+)
+  private pendingThoughts: Thought[] = [];
+}</code></pre>
+
+        <div class="warning-box">
+            <strong>⚠️ Dual History Pattern:</strong><br>
+            <ul>
+                <li><strong>Comprehensive History:</strong> Stores ALL turns including invalid ones for debugging/recording</li>
+                <li><strong>Curated History:</strong> Only valid turns sent to Gemini API for context</li>
+            </ul>
+            This ensures failed/retried turns don't pollute the AI's context.
+        </div>
+
+        <h3>GeminiClient State</h3>
+        <p>File: <span class="file-ref">packages/core/src/core/client.ts</span></p>
+
+        <pre><code>class GeminiClient {
+  // Turn tracking
+  private currentTurnCount: number = 0;
+  private maxTurns: number = 100;
+
+  // Model stickiness
+  private stickyModel?: string;
+
+  // Services
+  private chat: GeminiChat;
+  private routingStrategy: RoutingStrategy;
+  private loopDetection: LoopDetectionService;
+  private compression: ChatCompressionService;
+
+  // Configuration
+  private settings: Settings;
+  private toolRegistry: ToolRegistry;
+}</code></pre>
+
+        <h2>🗄️ Persistence Locations</h2>
+
+        <table>
+            <tr>
+                <th>Data Type</th>
+                <th>Storage Location</th>
+                <th>Format</th>
+            </tr>
+            <tr>
+                <td>Chat sessions</td>
+                <td><code>~/.gemini/tmp/&lt;hash&gt;/chats/</code></td>
+                <td>JSON (per session)</td>
+            </tr>
+            <tr>
+                <td>Session checkpoints</td>
+                <td><code>~/.gemini/tmp/&lt;hash&gt;/checkpoints/</code></td>
+                <td>JSON snapshots</td>
+            </tr>
+            <tr>
+                <td>Shell history</td>
+                <td><code>~/.gemini/tmp/&lt;hash&gt;/shell_history</code></td>
+                <td>Newline-delimited</td>
+            </tr>
+            <tr>
+                <td>User settings</td>
+                <td><code>~/.gemini/settings.json</code></td>
+                <td>JSON</td>
+            </tr>
+            <tr>
+                <td>Workspace settings</td>
+                <td><code>.gemini/settings.json</code></td>
+                <td>JSON</td>
+            </tr>
+            <tr>
+                <td>Global memory</td>
+                <td><code>~/.gemini/memory.md</code></td>
+                <td>Markdown</td>
+            </tr>
+            <tr>
+                <td>OAuth credentials</td>
+                <td><code>~/.gemini/oauth_creds.json</code></td>
+                <td>Encrypted JSON</td>
+            </tr>
+            <tr>
+                <td>API keys</td>
+                <td>System keychain</td>
+                <td>Secure storage</td>
+            </tr>
+        </table>
+
+        <h2>🔐 Security & Credentials</h2>
+
+        <h3>API Key Storage</h3>
+        <p>File: <span class="file-ref">packages/core/src/core/apiKeyCredentialStorage.ts</span></p>
+
+        <pre><code>// Hierarchy (first found wins):
+1. Environment variable: GEMINI_API_KEY or GOOGLE_API_KEY
+2. System keychain (secure)
+3. Settings file (deprecated, for migration)
+
+interface ApiKeyCredential {
+  apiKey: string;
+  source: 'env' | 'keychain' | 'settings';
+}</code></pre>
+
+        <h3>OAuth Token Storage</h3>
+        <pre><code>// Code Assist tokens
+interface OAuthCredentials {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;  // Unix timestamp
+  tokenType: 'Bearer';
+}
+
+// Stored in keychain + ~/.gemini/oauth_creds.json (encrypted)</code></pre>
+
+        <h2>📊 Telemetry Data Models</h2>
+
+        <h3>Session Metrics</h3>
+        <p>File: <span class="file-ref">packages/core/src/telemetry/uiTelemetry.ts</span></p>
+
+        <pre><code>interface SessionMetrics {
+  // Token usage
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+
+  // Turn stats
+  userTurns: number;
+  modelTurns: number;
+  totalTurns: number;
+
+  // Tool usage
+  toolCallsRequested: number;
+  toolCallsExecuted: number;
+  toolCallsFailed: number;
+  toolCallsCancelled: number;
+
+  // Session lifecycle
+  sessionDurationMs: number;
+  startTime: string;
+  endTime?: string;
+
+  // Model info
+  model: string;
+
+  // Events
+  compressionEvents: number;
+  retryEvents: number;
+  errorEvents: number;
+  loopDetectionTriggers: number;
+}</code></pre>
+
+        <h3>OpenTelemetry Traces</h3>
+        <pre><code>// Trace attributes
+interface TraceAttributes {
+  // Service identification
+  'service.name': string;         // "gemini-cli"
+  'service.version': string;      // "0.16.0"
+
+  // Session context
+  'session.id': string;
+  'session.workspace': string;
+
+  // Operation details
+  'operation.name': string;       // "tool_execution"
+  'operation.duration_ms': number;
+
+  // Model details
+  'model.name': string;
+  'model.tokens.input': number;
+  'model.tokens.output': number;
+
+  // Tool details (if applicable)
+  'tool.name': string;
+  'tool.status': 'success' | 'error' | 'cancelled';
+}</code></pre>
+
+        <h2>🔄 Streaming Data Patterns</h2>
+
+        <div class="success-box">
+            <strong>✅ AsyncGenerator Pattern:</strong><br>
+            Nearly all data flows in Gemini CLI use AsyncGenerators for streaming:
+            <ul>
+                <li>API responses stream chunk by chunk</li>
+                <li>Tool outputs stream in real-time</li>
+                <li>UI updates trigger immediately</li>
+                <li>Backpressure is handled naturally</li>
+            </ul>
+        </div>
+
+        <h3>Example: Turn Processing</h3>
+        <pre><code>async function* processTurn(
+  geminiResponse: AsyncIterable&lt;GenerateContentChunk&gt;
+): AsyncGenerator&lt;ServerGeminiStreamEvent&gt; {
+
+  for await (const chunk of geminiResponse) {
+    // Stream text chunks
+    if (chunk.text) {
+      yield {
+        type: 'content',
+        role: 'model',
+        text: chunk.text
+      };
+    }
+
+    // Stream thoughts
+    if (chunk.thought) {
+      const parsed = parseThought(chunk.thought);
+      yield {
+        type: 'thought',
+        ...parsed
+      };
+    }
+
+    // Collect tool calls
+    if (chunk.functionCalls) {
+      toolCalls.push(...chunk.functionCalls);
+    }
+  }
+
+  // Emit final event
+  yield {
+    type: 'finished',
+    value: {
+      finishReason: lastChunk.finishReason,
+      citations: Array.from(citationSet)
+    }
+  };
+}</code></pre>
+
+        <h2>📋 Summary</h2>
+
+        <table>
+            <tr>
+                <th>Category</th>
+                <th>Key Types</th>
+                <th>Location</th>
+            </tr>
+            <tr>
+                <td><strong>Conversation</strong></td>
+                <td>Content, StreamEvent, Message</td>
+                <td><code>core/turn.ts</code>, <code>core/geminiChat.ts</code></td>
+            </tr>
+            <tr>
+                <td><strong>Tools</strong></td>
+                <td>ToolCall, ToolBuilder, ToolResult</td>
+                <td><code>core/coreToolScheduler.ts</code>, <code>tools/tool-base.ts</code></td>
+            </tr>
+            <tr>
+                <td><strong>Configuration</strong></td>
+                <td>Settings, ModelConfig</td>
+                <td><code>cli/config/settings.ts</code></td>
+            </tr>
+            <tr>
+                <td><strong>Sessions</strong></td>
+                <td>RecordedMessage, SessionMetrics</td>
+                <td><code>services/chatRecordingService.ts</code></td>
+            </tr>
+            <tr>
+                <td><strong>Telemetry</strong></td>
+                <td>SessionMetrics, TraceAttributes</td>
+                <td><code>telemetry/uiTelemetry.ts</code></td>
+            </tr>
+        </table>
+
+        <div style="margin-top: 40px; text-align: center;">
+            <a href="../index.html" class="back-link">← Back to Index</a>
+        </div>
+    </div>
+</body>
+</html>

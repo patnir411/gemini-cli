@@ -448,6 +448,54 @@ export async function main() {
   {
     const config = await loadCliConfig(settings.merged, sessionId, argv);
 
+    // Initialize visualization bridge if enabled
+    if (process.env['GEMINI_VISUALIZATION'] === 'true') {
+      try {
+        const vizHost = process.env['GEMINI_VIZ_HOST'] || 'localhost';
+        const vizPort = process.env['GEMINI_VIZ_PORT'] || '9333';
+
+        // Connect to standalone visualization server via WebSocket
+        const wsModule = await import('ws');
+        const ws = new wsModule.WebSocket(`ws://${vizHost}:${vizPort}`);
+
+        await new Promise((resolve, reject) => {
+          ws.on('open', resolve);
+          ws.on('error', reject);
+          setTimeout(() => reject(new Error('Connection timeout')), 5000);
+        });
+
+        console.log(`[Gemini CLI] Connected to visualization server at ws://${vizHost}:${vizPort}`);
+
+        // Create simple bridge that sends events via WebSocket
+        const bridge = {
+          captureEvent: (event: any) => {
+            if (ws.readyState === wsModule.WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'event', event }));
+            }
+          },
+          captureStreamEvent: (event: any) => {
+            if (ws.readyState === wsModule.WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'stream_event', event }));
+            }
+          },
+          captureTurnStarted: (turnCount: number) => {
+            if (ws.readyState === wsModule.WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'event',
+                event: { type: 'turn_started', turnCount, timestamp: Date.now() }
+              }));
+            }
+          },
+        };
+
+        config.setVisualizationBridge(bridge);
+      } catch (error) {
+        console.error('[Gemini CLI] Failed to connect to visualization server:', error);
+        console.error('Make sure visualization server is running: cd realtime-vis && npm start');
+        // Continue execution even if visualization fails
+      }
+    }
+
     const policyEngine = config.getPolicyEngine();
     const messageBus = config.getMessageBus();
     createPolicyUpdater(policyEngine, messageBus);

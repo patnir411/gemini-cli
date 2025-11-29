@@ -1,0 +1,44 @@
+{
+  "name": "@google/gemini-cli-realtime-vis",
+  "version": "1.0.0",
+  "description": "Real-time visualization system for Gemini CLI internal state monitoring",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "gemini-viz": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.3",
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.4",
+    "eslint": "^9.24.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "gemini",
+    "cli",
+    "visualization",
+    "monitoring",
+    "real-time",
+    "debugging"
+  ],
+  "author": "Google",
+  "license": "Apache-2.0"
+}

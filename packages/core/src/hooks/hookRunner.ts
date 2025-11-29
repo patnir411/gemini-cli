@@ -47,15 +47,27 @@ export class HookRunner {
     const startTime = Date.now();
 
     try {
-      return await this.executeCommandHook(
-        hookConfig,
-        eventName,
-        input,
-        startTime,
-      );
+      if (hookConfig.type === 'native') {
+        return await this.executeNativeHook(
+          hookConfig,
+          eventName,
+          input,
+          startTime,
+        );
+      } else {
+        return await this.executeCommandHook(
+          hookConfig,
+          eventName,
+          input,
+          startTime,
+        );
+      }
     } catch (error) {
       const duration = Date.now() - startTime;
-      const hookSource = hookConfig.command || 'unknown';
+      const hookSource =
+        hookConfig.type === 'native'
+          ? hookConfig.path
+          : hookConfig.command || 'unknown';
       const errorMessage = `Hook execution failed for event '${eventName}' (source: ${hookSource}): ${error}`;
       debugLogger.warn(`Hook execution error (non-fatal): ${errorMessage}`);
 
@@ -172,10 +184,67 @@ export class HookRunner {
   }
 
   /**
+   * Execute a native hook
+   */
+  private async executeNativeHook(
+    hookConfig: import('./types.js').NativeHookConfig,
+    eventName: HookEventName,
+    input: HookInput,
+    startTime: number,
+  ): Promise<HookExecutionResult> {
+    const timeout = hookConfig.timeout ?? DEFAULT_HOOK_TIMEOUT;
+    const functionName = hookConfig.functionName || 'default';
+
+    try {
+      // Dynamically import the module
+      const module = await import(hookConfig.path);
+      const hookFunction = module[functionName];
+
+      if (typeof hookFunction !== 'function') {
+        throw new Error(
+          `Native hook function '${functionName}' not found in module '${hookConfig.path}'`,
+        );
+      }
+
+      // Execute the hook function with timeout
+      const hookPromise = Promise.resolve(hookFunction(input));
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Hook timed out after ${timeout}ms`));
+        }, timeout);
+      });
+
+      const output = (await Promise.race([
+        hookPromise,
+        timeoutPromise,
+      ])) as HookOutput;
+
+      const duration = Date.now() - startTime;
+
+      return {
+        hookConfig,
+        eventName,
+        success: true,
+        output,
+        duration,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      return {
+        hookConfig,
+        eventName,
+        success: false,
+        error: error instanceof Error ? error : new Error(String(error)),
+        duration,
+      };
+    }
+  }
+
+  /**
    * Execute a command hook
    */
   private async executeCommandHook(
-    hookConfig: HookConfig,
+    hookConfig: import('./types.js').CommandHookConfig,
     eventName: HookEventName,
     input: HookInput,
     startTime: number,

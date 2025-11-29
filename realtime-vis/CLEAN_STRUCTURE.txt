@@ -1,0 +1,23 @@
+CLEAN STRUCTURE
+===============
+
+realtime-vis/
+├── README.md                    # Simple usage docs
+├── package.json                 # Dependencies
+├── tsconfig.json               # TypeScript config
+├── src/                        # Backend
+│   ├── index.ts                # Entry point
+│   ├── bridge/                 # Event processing
+│   ├── server/                 # WebSocket + HTTP
+│   └── types/                  # TypeScript types
+├── public/                     # Dashboard
+│   ├── index.html              # Main page
+│   ├── css/main.css           # Styles
+│   └── js/dashboard-working.js # JavaScript
+└── dist/                       # Compiled output
+
+Wrapper: /usr/local/bin/gemini-viz
+
+Usage: gemini-viz --model=gemini-3-pro-preview
+
+That's it.

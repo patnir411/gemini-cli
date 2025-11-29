@@ -440,6 +440,20 @@ export class GeminiClient {
       this.currentSequenceModel = null;
     }
     this.sessionTurnCount++;
+
+    // Visualization: Capture turn started event with model info
+    const vizBridge = this.config.getVisualizationBridge() as any;
+    if (vizBridge && typeof vizBridge.captureTurnStarted === 'function') {
+      vizBridge.captureTurnStarted(this.sessionTurnCount);
+    }
+    if (vizBridge && typeof vizBridge.captureEvent === 'function') {
+      vizBridge.captureEvent({
+        type: 'model_info',
+        model: this.config.getModel(),
+        timestamp: Date.now(),
+      });
+    }
+
     if (
       this.config.getMaxSessionTurns() > 0 &&
       this.sessionTurnCount > this.config.getMaxSessionTurns()
@@ -546,6 +560,17 @@ export class GeminiClient {
         controller.abort();
         return turn;
       }
+
+      // Visualization: Capture stream events
+      if (vizBridge && typeof vizBridge.captureStreamEvent === 'function') {
+        vizBridge.captureStreamEvent({
+          type: event.type,
+          value: (event as any).value,
+          traceId: (event as any).traceId,
+          timestamp: Date.now(),
+        });
+      }
+
       yield event;
 
       this.updateTelemetryTokenCount();

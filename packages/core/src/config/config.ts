@@ -424,6 +424,7 @@ export class Config {
   private experiments: Experiments | undefined;
   private experimentsPromise: Promise<void> | undefined;
   private hookSystem?: HookSystem;
+  private visualizationBridge?: unknown; // Will be VisualizationBridge from realtime-vis
 
   private previewModelFallbackMode = false;
   private previewModelBypassMode = false;
@@ -1572,6 +1573,24 @@ export class Config {
       compact: false,
     });
     debugLogger.debug('Experiments loaded', summaryString);
+  }
+
+  /**
+   * Get the visualization bridge for real-time monitoring
+   */
+  getVisualizationBridge(): unknown | undefined {
+    return this.visualizationBridge;
+  }
+
+  /**
+   * Set the visualization bridge for real-time monitoring
+   * @param bridge - VisualizationBridge instance from realtime-vis package
+   */
+  setVisualizationBridge(bridge: unknown): void {
+    this.visualizationBridge = bridge;
+    if (bridge) {
+      debugLogger.debug('Visualization bridge connected');
+    }
   }
 }
 // Export model constants for use in CLI

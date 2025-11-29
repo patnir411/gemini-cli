@@ -43,7 +43,17 @@ export interface CommandHookConfig {
   timeout?: number;
 }
 
-export type HookConfig = CommandHookConfig;
+export type HookConfig = CommandHookConfig | NativeHookConfig;
+
+/**
+ * Native hook configuration
+ */
+export interface NativeHookConfig {
+  type: HookType.Native;
+  path: string;
+  functionName?: string;
+  timeout?: number;
+}
 
 /**
  * Hook definition with matcher
@@ -59,6 +69,7 @@ export interface HookDefinition {
  */
 export enum HookType {
   Command = 'command',
+  Native = 'native',
 }
 
 /**

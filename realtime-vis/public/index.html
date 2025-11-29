@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini CLI Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 { color: #667eea; margin-bottom: 10px; }
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .stat { display: flex; align-items: center; gap: 8px; }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .panel h2 {
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .big-stat {
+            text-align: center;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .big-number {
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .big-label { color: #6b7280; margin-top: 5px; }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .metric {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .metric-val { font-size: 1.5em; font-weight: 700; color: #667eea; }
+        .metric-lab { font-size: 0.8em; color: #6b7280; margin-top: 4px; }
+
+        .event-log {
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .event {
+            padding: 8px;
+            margin: 4px 0;
+            background: #f9fafb;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+        }
+        .event-time { color: #9ca3af; font-size: 0.85em; }
+        .event-type { color: #667eea; font-weight: 600; }
+
+        .full-width { grid-column: 1 / -1; }
+        .empty { text-align: center; padding: 40px; color: #9ca3af; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Gemini CLI Real-Time Monitor</h1>
+            <div style="margin:10px 0;display:flex;gap:10px;align-items:center;">
+                <span id="mode-indicator" style="padding:4px 12px;background:#10b981;color:white;border-radius:12px;font-size:0.85em;font-weight:600;">LIVE MODE</span>
+                <button id="btn-live" style="padding:6px 16px;background:#667eea;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Switch to Live</button>
+                <button id="btn-refresh-sessions" style="padding:6px 16px;background:#6b7280;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Refresh Sessions</button>
+                <button id="btn-export" style="padding:6px 16px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Export Session</button>
+            </div>
+            <div class="stats">
+                <div class="stat"><div class="status-dot"></div><span id="status">Connected</span></div>
+                <div class="stat">Events: <strong id="events">0</strong></div>
+                <div class="stat">Turn: <strong id="turn">0</strong>/100</div>
+                <div class="stat">Model: <strong id="model">-</strong></div>
+                <div class="stat">Tokens: <strong id="tokens-header">0</strong></div>
+                <div class="stat">Tools: <strong id="tools-header">0</strong></div>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- DAG Visualization -->
+            <div class="panel full-width">
+                <h2>🔄 Execution DAG (Hierarchical)</h2>
+                <div id="dag-container" style="min-height:600px;max-height:800px;overflow:auto;"></div>
+                <div id="dag-details" style="margin-top:15px;"></div>
+            </div>
+
+            <!-- Simple Workflow Diagram -->
+            <div class="panel full-width">
+                <h2>📊 Linear Flow Overview</h2>
+                <div style="padding:20px;background:#f9fafb;border-radius:8px;">
+                    <svg width="100%" height="150" style="max-width:1200px;margin:0 auto;display:block;">
+                        <g id="stage-input">
+                            <rect x="10" y="50" width="120" height="50" rx="8" fill="#e5e7eb" stroke="#667eea" stroke-width="2"/>
+                            <text x="70" y="80" text-anchor="middle" font-size="14" font-weight="600">User Input</text>
+                        </g>
+                        <path d="M 130 75 L 170 75" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <g id="stage-turn">
+                            <rect x="170" y="50" width="120" height="50" rx="8" fill="#e5e7eb" stroke="#667eea" stroke-width="2"/>
+                            <text x="230" y="75" text-anchor="middle" font-size="14" font-weight="600">Turn</text>
+                            <text x="230" y="92" text-anchor="middle" font-size="11" fill="#6b7280" id="turn-count-svg">0/100</text>
+                        </g>
+                        <path d="M 290 75 L 330 75" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <g id="stage-api">
+                            <rect x="330" y="50" width="120" height="50" rx="8" fill="#e5e7eb" stroke="#667eea" stroke-width="2"/>
+                            <text x="390" y="80" text-anchor="middle" font-size="14" font-weight="600">API</text>
+                        </g>
+                        <path d="M 450 75 L 490 75" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <g id="stage-tool">
+                            <rect x="490" y="50" width="120" height="50" rx="8" fill="#e5e7eb" stroke="#667eea" stroke-width="2"/>
+                            <text x="550" y="75" text-anchor="middle" font-size="14" font-weight="600">Tools</text>
+                            <text x="550" y="92" text-anchor="middle" font-size="11" fill="#6b7280" id="tool-count-svg">0</text>
+                        </g>
+                        <path d="M 610 75 L 650 75" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)"/>
+
+                        <g id="stage-response">
+                            <rect x="650" y="50" width="120" height="50" rx="8" fill="#e5e7eb" stroke="#667eea" stroke-width="2"/>
+                            <text x="710" y="80" text-anchor="middle" font-size="14" font-weight="600">Response</text>
+                        </g>
+
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <polygon points="0 0, 10 3, 0 6" fill="#667eea"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Big Token Display -->
+            <div class="panel">
+                <h2>💎 Token Usage</h2>
+                <div class="big-stat">
+                    <div class="big-number" id="tokens-big">0</div>
+                    <div class="big-label">Total Tokens (<span id="percent">0%</span>)</div>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric"><div class="metric-val" id="tok-prompt">0</div><div class="metric-lab">Prompt</div></div>
+                    <div class="metric"><div class="metric-val" id="tok-output">0</div><div class="metric-lab">Output</div></div>
+                    <div class="metric"><div class="metric-val" id="tok-cached">0</div><div class="metric-lab">Cached</div></div>
+                    <div class="metric"><div class="metric-val" id="tok-thoughts">0</div><div class="metric-lab">Thoughts</div></div>
+                    <div class="metric"><div class="metric-val" id="tok-tools">0</div><div class="metric-lab">Tools</div></div>
+                    <div class="metric"><div class="metric-val" id="tok-total">0</div><div class="metric-lab">Total</div></div>
+                </div>
+            </div>
+
+            <!-- Turn Info -->
+            <div class="panel">
+                <h2>🔄 Turn State</h2>
+                <div class="big-stat">
+                    <div class="big-number" id="turn-big">0</div>
+                    <div class="big-label">of 100 Turns</div>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric"><div class="metric-val" id="iterations">0</div><div class="metric-lab">Iterations</div></div>
+                    <div class="metric"><div class="metric-val" id="pending-tools">0</div><div class="metric-lab">Pending Tools</div></div>
+                    <div class="metric"><div class="metric-val" id="finish-reason">-</div><div class="metric-lab">Finish Reason</div></div>
+                </div>
+            </div>
+
+            <!-- Performance -->
+            <div class="panel">
+                <h2>⚡ Performance</h2>
+                <div class="metric-grid">
+                    <div class="metric"><div class="metric-val" id="api-latency">0ms</div><div class="metric-lab">API Latency</div></div>
+                    <div class="metric"><div class="metric-val" id="events-sec">0</div><div class="metric-lab">Events/sec</div></div>
+                    <div class="metric"><div class="metric-val" id="memory">0MB</div><div class="metric-lab">Memory</div></div>
+                </div>
+            </div>
+
+            <!-- Tool Timeline -->
+            <div class="panel full-width">
+                <h2>🔧 Tool Execution</h2>
+                <div id="tools"></div>
+            </div>
+
+            <!-- Messages -->
+            <div class="panel full-width">
+                <h2>💬 Conversation</h2>
+                <div id="messages" style="max-height:500px;overflow-y:auto;"></div>
+            </div>
+
+            <!-- Session History -->
+            <div class="panel">
+                <h2>📚 Past Sessions</h2>
+                <div id="session-list" style="max-height:300px;overflow-y:auto;"></div>
+            </div>
+
+            <!-- Replay Progress (shown when in replay mode) -->
+            <div class="panel">
+                <h2>⏯️ Replay Progress</h2>
+                <div style="background:#f3f4f6;border-radius:8px;height:30px;overflow:hidden;margin:10px 0;">
+                    <div id="replay-progress" style="height:100%;background:#667eea;width:0%;transition:width 0.3s;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:0.9em;">0%</div>
+                </div>
+            </div>
+
+            <!-- Event Stream -->
+            <div class="panel full-width">
+                <h2>📡 Event Stream</h2>
+                <div class="event-log" id="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dag-viewer.js"></script>
+    <script src="/js/session-viewer.js"></script>
+    <script src="/js/dashboard-working.js"></script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+description = "Performs a focused security review of code changes, identifying HIGH-CONFIDENCE vulnerabilities with real exploitation potential."
+prompt = """
+You are a senior security engineer conducting a focused security review of a codebase. This is NOT a general code review — focus ONLY on security implications.
+
+## Target: {{args}}
+
+## Step 1: Gather Changes
+
+Determine the review target and gather the relevant diff:
+
+- If the target is empty or 'staged':
+  Run `git diff --staged` to view staged changes.
+  Run `git status` to see the state of the repository.
+  Run `git diff` to view unstaged changes if no staged changes exist.
+
+- If the target is a PR number (numeric):
+  Run `gh pr view {{args}}` to read the PR description.
+  Run `gh pr diff {{args}}` to view the diff.
+
+- If the target is a branch name or commit range:
+  Run `git diff {{args}}` to view the changes.
+
+- If the target is a file or directory path:
+  Run `git diff -- {{args}}` to view changes for that path.
+  If no diff exists, read the file(s) directly for a full review.
+
+If the diff is very large (>2000 lines), focus on security-critical files first: authentication, authorization, input handling, database queries, API endpoints, crypto operations, and configuration files. Summarize which files you skipped and why.
+
+## Step 2: Security Analysis (3-Phase Methodology)
+
+### Phase 1 — Repository Context Research
+Before analyzing the diff, understand the project's security posture:
+- Use `grep` and `glob` to identify existing security frameworks (e.g., helmet, cors, csrf, sanitize libraries)
+- Look for established input validation and sanitization patterns
+- Check for existing authentication/authorization middleware
+- Understand the project's trust boundaries (what is user input vs trusted internal data)
+
+### Phase 2 — Comparative Analysis
+Compare the new code against the project's established patterns:
+- Does the new code follow the same sanitization approach as existing code?
+- Are there inconsistencies in how security-sensitive operations are handled?
+- Does the change introduce new attack surfaces (new endpoints, new user inputs, new file operations)?
+- Are there deviations from the project's established security model?
+
+### Phase 3 — Vulnerability Assessment
+Examine all changed code for the following vulnerability categories. For each file, trace data flow from user inputs to sensitive operations:
+
+**Input Validation & Injection**
+- SQL injection via unsanitized user input in database queries
+- Command injection in system calls, exec(), spawn(), child_process
+- XXE injection in XML parsing (e.g., xml2js without disabling entities)
+- Template injection in templating engines (e.g., eval-based templates)
+- NoSQL injection in MongoDB/document database queries
+- Path traversal in file operations (e.g., joining user input with file paths without validation)
+- LDAP injection, XPath injection
+
+**Authentication & Authorization**
+- Authentication bypass logic (e.g., early returns, missing checks on routes)
+- Privilege escalation paths (e.g., user can modify their own role)
+- Session management flaws (e.g., session fixation, missing invalidation)
+- JWT vulnerabilities (e.g., algorithm confusion, missing expiry validation, weak secrets)
+- IDOR (Insecure Direct Object Reference) — accessing resources by manipulating IDs
+- Missing authorization checks on sensitive endpoints
+
+**Cryptography & Secrets Management**
+- Hardcoded API keys, passwords, tokens, or secrets in source code
+- Weak cryptographic algorithms (MD5, SHA1 for security purposes, DES, RC4)
+- Improper key storage or key material in logs
+- Use of Math.random() or non-CSPRNG for security-sensitive randomness
+- Certificate validation bypasses (e.g., rejectUnauthorized: false)
+
+**Code Execution & Deserialization**
+- Remote code execution via unsafe deserialization (pickle, YAML load, Java deserialization)
+- eval() / Function() / vm.runInNewContext with user-controlled input
+- Prototype pollution in JavaScript/TypeScript
+- Server-Side Request Forgery (SSRF) via user-controlled URLs
+- XSS vulnerabilities — reflected, stored, and DOM-based (e.g., dangerouslySetInnerHTML, bypassSecurityTrustHtml, innerHTML assignment)
+
+**Data Exposure**
+- Sensitive data written to logs (passwords, tokens, PII, credit cards)
+- API endpoints returning more data than necessary (mass assignment)
+- Debug/stack trace information exposed to users
+- Sensitive data in URL query parameters (logged by proxies/browsers)
+- Missing encryption for data at rest or in transit
+
+**Configuration & Infrastructure**
+- Insecure default configurations (e.g., debug mode enabled, CORS wildcard)
+- Missing security headers (CSP, X-Frame-Options, etc.)
+- Overly permissive CORS policies
+- Insecure cookie settings (missing httpOnly, secure, sameSite)
+
+## Step 3: False Positive Filtering
+
+For EACH potential finding, critically self-evaluate before reporting:
+
+1. **Exploitability**: Is there a concrete, realistic attack path? Can you describe the specific steps an attacker would take?
+2. **Existing Mitigations**: Does the codebase already have protections in place (e.g., ORM parameterization, framework auto-escaping, WAF)?
+3. **Confidence**: Rate your confidence from 1-10. Only report findings with confidence ≥ 8.
+4. **Impact**: Would exploitation lead to unauthorized access, data breach, or system compromise?
+
+**HARD EXCLUSIONS — DO NOT report these:**
+- Denial of Service (DoS) vulnerabilities or resource exhaustion
+- Rate limiting concerns
+- Memory or CPU exhaustion attacks
+- Generic input validation issues without a proven security impact
+- Environment variables and CLI flags (these are trusted values)
+- Client-side JavaScript permission checks (server is responsible for enforcement)
+- Regex injection or ReDoS attacks
+- Test files and test fixtures
+- Log spoofing concerns
+- SSRF where attacker only controls the URL path (not the host)
+- Documentation files
+- Missing audit logging
+- Open redirect vulnerabilities (low impact)
+- Vulnerabilities in commented-out code
+- Secrets in .env.example or similar template files (these are placeholders)
+
+**CONTEXT-SPECIFIC EXCLUSIONS:**
+- React/Angular apps are generally safe from XSS unless using `dangerouslySetInnerHTML` or `bypassSecurityTrustHtml`
+- GitHub Action workflow vulnerabilities must have a concrete, specific attack path
+- Including user content in AI prompts is not inherently a vulnerability
+- Logging non-PII data is not a vulnerability
+- Command injection in shell scripts requires untrusted input to be exploitable
+
+## Step 4: Report Findings
+
+For each validated finding (confidence ≥ 8/10), report using this exact format:
+
+---
+
+### Finding [N]: [CATEGORY] — `[file_path]:[line_number]`
+
+| Field | Value |
+|-------|-------|
+| **Severity** | `HIGH` or `MEDIUM` |
+| **Confidence** | [8-10]/10 |
+| **Category** | [e.g., sql_injection, xss, command_injection, hardcoded_secret] |
+
+**Description**: [Clear explanation of the vulnerability]
+
+**Exploit Scenario**: [Step-by-step description of how an attacker would exploit this]
+
+**Recommendation**:
+```
+[Specific code fix or remediation approach]
+```
+
+---
+
+## Step 5: Security Review Summary
+
+After completing the analysis, provide this summary:
+
+### Security Review Summary
+
+| Metric | Value |
+|--------|-------|
+| **Files Reviewed** | [count] |
+| **HIGH Severity** | [count] |
+| **MEDIUM Severity** | [count] |
+| **Status** | `PASS` — No security issues found / `FINDINGS` — N issues require attention |
+
+If no vulnerabilities were found:
+> ✓ No high-confidence security vulnerabilities identified in the reviewed changes.
+
+If vulnerabilities were found:
+> ⚠ [N] security issue(s) identified. Review findings above and apply recommended fixes before merging.
+
+---
+
+**CRITICAL PRINCIPLES:**
+1. **Minimize false positives.** It is FAR better to miss a theoretical issue than to flood the report with noise. Only report findings that a senior security engineer would confidently flag in a PR review.
+2. **Be specific.** Every finding must reference a specific file, line number, and concrete exploit scenario.
+3. **Be actionable.** Every finding must include a specific, implementable recommendation.
+4. **Focus on NEW vulnerabilities introduced by the changes.** Do not report pre-existing issues in unchanged code unless the changes significantly increase their exploitability.
+"""

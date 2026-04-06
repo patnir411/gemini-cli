@@ -97,6 +97,20 @@ export type MessageRecord = BaseMessageRecord & ConversationRecordExtra;
 /**
  * Complete conversation record stored in session files.
  */
+/**
+ * A pending request that failed and can be retried on session resume.
+ */
+export interface PendingRequest {
+  /** The text content of the request that failed */
+  content: string;
+  /** ISO8601 timestamp when the request failed */
+  failedAt: string;
+  /** The error message that caused the failure */
+  errorMessage: string;
+  /** Number of retry attempts that were made before giving up */
+  retryAttempts: number;
+}
+
 export interface ConversationRecord {
   sessionId: string;
   projectHash: string;
@@ -108,6 +122,8 @@ export interface ConversationRecord {
   directories?: string[];
   /** The kind of conversation (main agent or subagent) */
   kind?: 'main' | 'subagent';
+  /** A request that failed and can be retried on session resume */
+  pendingRequest?: PendingRequest;
 }
 
 /**
@@ -733,6 +749,52 @@ export class ChatRecordingService {
       }
     } catch (error) {
       debugLogger.error(`Error deleting associated file ${file}:`, error);
+    }
+  }
+
+  /**
+   * Records a pending request that failed, so it can be retried on session resume.
+   * This is called when an API call fails after exhausting all retries.
+   */
+  recordPendingRequest(
+    content: string,
+    errorMessage: string,
+    retryAttempts: number,
+  ): void {
+    if (!this.conversationFile) return;
+
+    try {
+      this.updateConversation((conversation) => {
+        conversation.pendingRequest = {
+          content,
+          failedAt: new Date().toISOString(),
+          errorMessage,
+          retryAttempts,
+        };
+      });
+    } catch (error) {
+      debugLogger.error('Error saving pending request to chat history.', error);
+      // Don't throw - we want graceful degradation during error handling
+    }
+  }
+
+  /**
+   * Clears any pending request from the session.
+   * Called when a previously failed request succeeds on retry or is manually dismissed.
+   */
+  clearPendingRequest(): void {
+    if (!this.conversationFile) return;
+
+    try {
+      this.updateConversation((conversation) => {
+        delete conversation.pendingRequest;
+      });
+    } catch (error) {
+      debugLogger.error(
+        'Error clearing pending request from chat history.',
+        error,
+      );
+      // Don't throw - graceful degradation
     }
   }
 
